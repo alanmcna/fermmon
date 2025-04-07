@@ -1,0 +1,12 @@
+[Unit]
+Description=http.server
+After=multi-user.target
+
+[Service]
+Type=simple
+Restart=always
+WorkingDirectory=/home/ubuntu
+ExecStart=/usr/bin/python python -m http.server
+
+[Install]
+WantedBy=multi-user.target

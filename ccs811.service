@@ -1,0 +1,12 @@
+[Unit]
+Description=Air Quality Readings (CCS811)
+After=multi-user.target
+
+[Service]
+Type=simple
+Restart=always
+WorkingDirectory=/home/ubuntu
+ExecStart=/usr/bin/python /home/ubuntu/ccs811.py > /home/ubuntu/ccs811.log 2>&1
+
+[Install]
+WantedBy=multi-user.target
