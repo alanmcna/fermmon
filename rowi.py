@@ -31,6 +31,6 @@ class Rowi:
         print("Rowi - current status is: " + self.getRelayStatus())
         print("Sleeping 10s")
         time.sleep(10)
-        temp, humi = self.getRelayTemparture()
+        temp, humi = self.getTemperature()
         print("Rowi - current temperature is: " + str(temp))
         print("Rowi - current humidity is: " + str(humi))

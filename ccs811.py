@@ -7,6 +7,7 @@ from rowi import Rowi
 version = 'v4'
 
 # function to read ds18b20 probe
+# TODO: classify
 def ds18B20(SensorID):
     try:
         f = open( "/sys/bus/w1/devices/" + SensorID + "/w1_slave")
