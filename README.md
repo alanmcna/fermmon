@@ -1,3 +1,11 @@
+# What / why?
+
+Set-up to monitor my brew fermentation (over a ~10 day period) to watch for co2 levels to drop to indicate the brew is done.
+
+Also have a Rowi (API enabled plug) to turn on my heater belt if the temp drops low.
+
+Currently a WIP - will improve and add some 3d print files for the housing ( fits on top of the airlock).
+
 # packages
 
 r-cran
