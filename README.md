@@ -19,5 +19,5 @@ r-cran
 * testRowi.py to check that Rowi is working
 
 
-![Co2 and tVOC text](ccs811_co2.jpg)
-![Int/Ext Temp and Humidity](ccs811_temp.jpg)
+![Co2 and tVOC text](ccs811_co2.png)
+![Int/Ext Temp and Humidity](ccs811_temp.png)
