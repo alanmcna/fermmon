@@ -15,6 +15,24 @@ Currently a WIP - will improve and add some 3d print files for the housing ( fit
 * Mangrove Jack starter brew kit
 * Thermowell 300mm - cut to suit
 
+## /boot/firmware/config.txt
+
+```
+# Uncomment some or all of these to enable the optional hardware interfaces
+dtparam=i2c_arm=on
+dtparam=i2s=on
+dtparam=spi=on
+
+# Enable I2C clock stretching
+dtparam=i2c_arm_baudrate=10000
+
+...
+
+dtoverlay=w1-gpio
+enable_uart=1
+```
+
+
 # packages
 
 r-cran
