@@ -6,6 +6,15 @@ Also have a Rowi (API enabled plug) to turn on my heater belt if the temp drops 
 
 Currently a WIP - will improve and add some 3d print files for the housing ( fits on top of the airlock).
 
+# hardware
+
+* pi-zero 2w
+* ccs811 - air quality sensor (sparkfun)
+* DS18b20 - Temperature Sensor Probe - Stainless steel
+* rowi 2
+* Mangrove Jack starter brew kit
+* Thermowell 300mm - cut to suit
+
 # packages
 
 r-cran
@@ -29,3 +38,11 @@ r-cran
 
 ![Co2 and tVOC text](ccs811_co2.png)
 ![Int/Ext Temp and Humidity](ccs811_temp.png)
+
+# references
+
+* https://www.sparkfun.com/sparkfun-environmental-combo-breakout-ens160-bme280-qwiic.html
+* https://surplustronics.co.nz/products/7361-temperature-sensor-probe-ds18b20-stainless-steel?srsltid=AfmBOoqpXowka8xFb00-9X7AfwTPzsrlTYhQia4CZAeGhiJS74ml-dqN
+* https://www.kiwi-warmer.co.nz/shop/product/826130/rowi-2-smart-plug-with-api/
+* https://mangrovejacks.com/collections/starter-brewery/products/traditional-series-blonde-lager-starter-brewery
+* https://allthingsfermented.nz/products/ss-brewtech-stainless-steel-weldless-thermowell
