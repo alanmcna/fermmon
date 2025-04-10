@@ -1,6 +1,98 @@
 <!DOCTYPE html>
+<head>
 <meta charset="utf-8">
 <title>Co2, tVOC and Temperature</title>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.5/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-SgOJa3DmI69IUzQ2PVdRZhwQ+dy64/BUtbMJw1MZ8t5HZApcHrRKUc4W0kG879m7" crossorigin="anonymous">
+<script defer src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.5/dist/js/bootstrap.bundle.min.js"></script>
+<style>
+img
+{
+   width: 80%;
+   margin: auto;
+}
+</style>
+</head>
 <body>
-<img src="ccs811_co2.png"/>
-<img src="ccs811_temp.png"/>
+<div class="container my-5">
+  <div class="row"><div class="col"><hr/></div></div>
+  <div class="row">
+    <div class="col fs-1"><b>Date:</b></div>
+    <div class="col fs-1" id="dateTime"></div>
+  </div>
+  <div class="row"><div class="col"><hr/></div></div>
+  <div class="row">
+    <div class="col fs-1"><b>Int. Temperature:</b></div>
+    <div class="col fs-1" id="intTemp"></div>
+  </div>
+  <div class="row">
+    <div class="col fs-1"><b>Relay Status:</b></div>
+    <div class="col fs-1" id="relayStatus"></div>
+  </div>
+  <div class="row"><div class="col"><hr/></div></div>
+  <div class="row">
+    <div class="col fs-1"><b>Env. Temperature:</b></div>
+    <div class="col fs-1" id="envTemp"></div>
+  </div>
+  <div class="row">
+    <div class="col fs-1"><b>Env. Humidity:</b></div>
+    <div class="col fs-1" id="envHumi"></div>
+  </div>
+  <div class="row"><div class="col"><hr/></div></div>
+  <div class="row">
+    <div class="col fs-1"><b>Co2:</b></div>
+    <div class="col fs-1" id="co2"></div>
+  </div>
+  <div class="row">
+    <div class="col fs-1"><b>tVOC:</b></div>
+    <div class="col fs-1" id="tVOC"></div>
+  </div>
+  <div class="row"><div class="col"><hr/></div></div>
+</div>
+<div id="carouselExample" class="carousel slide" data-bs-theme="dark" data-bs-ride="carousel">
+  <div class="carousel-inner">
+    <div class="carousel-item active" data-bs-interval="20000">
+      <img src="ccs811_co2.png" class="d-block" alt="co2 and tvoc">
+    </div>
+    <div class="carousel-item" data-bs-interval="20000">
+      <img src="ccs811_temp.png" class="d-block" alt="Int. + Ext. Temperature and Humidity">
+    </div>
+    <div class="carousel-item" data-bs-interval="20000">
+      <img src="ccs811_rs.png" class="d-block" alt="Relay Status">
+    </div>
+  </div>
+  <button class="carousel-control-prev" type="button" data-bs-target="#carouselExample" data-bs-slide="prev">
+    <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+    <span class="visually-hidden">Previous</span>
+  </button>
+  <button class="carousel-control-next" type="button" data-bs-target="#carouselExample" data-bs-slide="next">
+    <span class="carousel-control-next-icon" aria-hidden="true"></span>
+    <span class="visually-hidden">Next</span>
+  </button>
+</div>
+<script>
+
+$(document).ready(function() {
+  $.ajax({
+    type: "GET",
+    url: "latest.csv",
+    dataType: "text",
+    success: function(data) {
+      processData(data);
+    }
+  });
+});
+
+function processData(allText) {
+  console.log("alltext: " + allText);
+  var data = allText.split(',');
+  $("#dateTime").html(new Date(data[0] + " UTC").toLocaleString());
+  $("#intTemp").html(data[3] + " &deg;C");
+  $("#relayStatus").html(data[7] + " (" + (data[7] == 1 ? "On" : "Off") + ")");
+  $("#envTemp").html(data[5] + " &deg;C");
+  $("#envHumi").html(data[6] + " %");
+  $("#co2").html(data[1] + " ppm");
+  $("#tVOC").html(data[2] + " ppb");
+}
+</script>
+</body>
