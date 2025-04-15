@@ -1,94 +1,105 @@
 <!DOCTYPE html>
 <head>
 <meta charset="utf-8">
+<meta http-equiv="cache-control" content="no-cache" />
+<meta http-equiv="expires" content="Tue, 01 Jan 1980 1:00:00 GMT" />
+<meta http-equiv="pragma" content="no-cache" />
 <title>Co2, tVOC and Temperature</title>
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.5/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-SgOJa3DmI69IUzQ2PVdRZhwQ+dy64/BUtbMJw1MZ8t5HZApcHrRKUc4W0kG879m7" crossorigin="anonymous">
 <script defer src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.5/dist/js/bootstrap.bundle.min.js"></script>
 <style>
-img
-{
-   width: 80%;
-   margin: auto;
+img { 
+  width: 50%; 
+  margin: auto; 
+} 
+
+@media screen and (min-width: 480px) {
+  img { 
+    width: 80%; 
+    margin: auto; 
+  } 
 }
 </style>
 </head>
 <body>
+<nav class="navbar bg-body-tertiary">
+  <div class="container-fluid">
+    <a class="navbar-brand" href="#">&nbsp;<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-eye" viewBox="0 0 16 16">
+  <path d="M16 8s-3-5.5-8-5.5S0 8 0 8s3 5.5 8 5.5S16 8 16 8M1.173 8a13 13 0 0 1 1.66-2.043C4.12 4.668 5.88 3.5 8 3.5s3.879 1.168 5.168 2.457A13 13 0 0 1 14.828 8q-.086.13-.195.288c-.335.48-.83 1.12-1.465 1.755C11.879 11.332 10.119 12.5 8 12.5s-3.879-1.168-5.168-2.457A13 13 0 0 1 1.172 8z"/>
+  <path d="M8 5.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5M4.5 8a3.5 3.5 0 1 1 7 0 3.5 3.5 0 0 1-7 0"/></svg>&nbsp;Brew (Fermentor) Monitor
+    </a>
+  </div>
+</nav>
 <div class="container my-5">
   <div class="row"><div class="col"><hr/></div></div>
   <div class="row">
-    <div class="col fs-1"><b>Date:</b></div>
-    <div class="col fs-1" id="dateTime"></div>
+    <div class="col fs-2"><b>Latest Reading:</b></div>
+    <div class="col fs-2" id="dateTime"></div>
   </div>
   <div class="row"><div class="col"><hr/></div></div>
   <div class="row">
-    <div class="col fs-1"><b>Int. Temperature:</b></div>
-    <div class="col fs-1" id="intTemp"></div>
-  </div>
-  <div class="row">
-    <div class="col fs-1"><b>Relay Status:</b></div>
-    <div class="col fs-1" id="relayStatus"></div>
+    <div class="col fs-2"><b>Int. Temperature:</b></div>
+    <div class="col fs-2" id="intTemp"></div>
   </div>
   <div class="row"><div class="col"><hr/></div></div>
   <div class="row">
-    <div class="col fs-1"><b>Env. Temperature:</b></div>
-    <div class="col fs-1" id="envTemp"></div>
+    <div class="col fs-2"><b>Heat Belt:</b></div>
+    <div class="col fs-2" id="heatBelt"></div>
   </div>
   <div class="row">
-    <div class="col fs-1"><b>Env. Humidity:</b></div>
-    <div class="col fs-1" id="envHumi"></div>
+    <div class="col fs-2"><b>Env. Temperature:</b></div>
+    <div class="col fs-2" id="envTemp"></div>
+  </div>
+  <div class="row">
+    <div class="col fs-2"><b>Env. Humidity:</b></div>
+    <div class="col fs-2" id="envHumi"></div>
   </div>
   <div class="row"><div class="col"><hr/></div></div>
   <div class="row">
-    <div class="col fs-1"><b>Co2:</b></div>
-    <div class="col fs-1" id="co2"></div>
+    <div class="col fs-2"><b>Co2:</b></div>
+    <div class="col fs-2" id="co2"></div>
   </div>
   <div class="row">
-    <div class="col fs-1"><b>tVOC:</b></div>
-    <div class="col fs-1" id="tVOC"></div>
+    <div class="col fs-2"><b>tVOC:</b></div>
+    <div class="col fs-2" id="tVOC"></div>
   </div>
   <div class="row"><div class="col"><hr/></div></div>
 </div>
-<div id="carouselExample" class="carousel slide" data-bs-theme="dark" data-bs-ride="carousel">
-  <div class="carousel-inner">
-    <div class="carousel-item active" data-bs-interval="20000">
-      <img src="ccs811_co2.png" class="d-block" alt="co2 and tvoc">
-    </div>
-    <div class="carousel-item" data-bs-interval="20000">
-      <img src="ccs811_temp.png" class="d-block" alt="Int. + Ext. Temperature and Humidity">
-    </div>
-    <div class="carousel-item" data-bs-interval="20000">
-      <img src="ccs811_rs.png" class="d-block" alt="Relay Status">
+<div class="container-fluid text-center my-5">
+  <div class="row">
+    <div class="col">
+      <img src="ccs811_co2.png" alt="co2 and tvoc" />
     </div>
   </div>
-  <button class="carousel-control-prev" type="button" data-bs-target="#carouselExample" data-bs-slide="prev">
-    <span class="carousel-control-prev-icon" aria-hidden="true"></span>
-    <span class="visually-hidden">Previous</span>
-  </button>
-  <button class="carousel-control-next" type="button" data-bs-target="#carouselExample" data-bs-slide="next">
-    <span class="carousel-control-next-icon" aria-hidden="true"></span>
-    <span class="visually-hidden">Next</span>
-  </button>
+  <div class="row">
+    <div class="col">
+      <img src="ccs811_temp.png" alt="Int. + Ext. Temperature, Humidity and Heat Belt activation" />
+    </div>
+  </div>
 </div>
 <script>
 
 $(document).ready(function() {
+  // Latest (from latest.csv)
+  var url = "latest.csv?ts=" + Date.now();
+  console.log("url: " + url);
   $.ajax({
     type: "GET",
-    url: "latest.csv",
+    url: url,
     dataType: "text",
     success: function(data) {
-      processData(data);
+      processLatestData(data);
     }
   });
 });
 
-function processData(allText) {
+function processLatestData(allText) {
   console.log("alltext: " + allText);
   var data = allText.split(',');
   $("#dateTime").html(new Date(data[0] + " UTC").toLocaleString());
   $("#intTemp").html(data[3] + " &deg;C");
-  $("#relayStatus").html(data[7] + " (" + (data[7] == 1 ? "On" : "Off") + ")");
+  $("#heatBelt").html((data[7] == 1 ? "On" : "Off"));
   $("#envTemp").html(data[5] + " &deg;C");
   $("#envHumi").html(data[6] + " %");
   $("#co2").html(data[1] + " ppm");
