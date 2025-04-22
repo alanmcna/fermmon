@@ -35,7 +35,14 @@ enable_uart=1
 
 # packages
 
-r-cran
+- git 
+- r-recommended
+- r-cran-zoo
+- python3-pip
+
+## python packages
+
+- pip3 install sparkfun-qwiic-i2c
 
 # services
 ```
