@@ -1,16 +1,18 @@
 #!/usr/bin/Rscript
 
+# Note - doesn't filter by version as yet - TODO
+
 # Install package
 require(zoo)
 
 ## CO@ and tVOC PLOT
 
-png(filename="ccs811_co2.png", width = 1024, height = 768, unit = "px")
+png(filename="fermmon_co2.png", width = 1024, height = 768, unit = "px")
 
 # 2021-01-01 00:00:06
 # 2025-02-28 23:55:02
 setAs("character","myDate", function(from) as.POSIXlt(from, format="%Y-%m-%d %H:%M:%S") )
-rawdata <- read.csv("ccs811.csv", col.names=c('Date.Time','CO2','tVOC', 'Temp', 'V', 'rTemp', 'rHumi', 'Relay'), colClasses=c('myDate','double','double','double','character','double','double','character'), header=TRUE)
+rawdata <- read.csv("fermmon.csv", col.names=c('Date.Time','CO2','tVOC', 'Temp', 'V', 'rTemp', 'rHumi', 'Relay'), colClasses=c('myDate','double','double','double','character','double','double','character'), header=TRUE)
 rawdata$Relay <- as.numeric(rawdata$Relay)
 summary(rawdata)
 
@@ -43,7 +45,7 @@ detach(co2data)
 tempdata <- subset(rawdata, Temp>0)
 attach(tempdata)
 
-png(filename="ccs811_temp.png", width = 1024, height = 768, unit = "px")
+png(filename="fermmon_temp.png", width = 1024, height = 768, unit = "px")
 
 ## add extra space to right margin of plot within frame
 par(mar=c(5, 5, 5, 5) + 0.1)

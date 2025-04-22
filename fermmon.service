@@ -1,12 +1,12 @@
 [Unit]
-Description=http.server
+Description=Brew Fermentor Monitor
 After=multi-user.target
 
 [Service]
 Type=simple
 Restart=always
 WorkingDirectory=/home/ubuntu/fermmon
-ExecStart=/usr/bin/python python -m http.server
+ExecStart=/usr/bin/python /home/ubuntu/fermmon/fermmon.py > /home/ubuntu/fermmon/fermmon.log 2>&1
 
 [Install]
 WantedBy=multi-user.target

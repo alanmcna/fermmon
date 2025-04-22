@@ -4,7 +4,31 @@ import glob, os
 import sys
 from rowi import Rowi
 
-version = 'v4'
+# Write to CSV - much faster than journalctrl
+def writeResults(str):
+    filename = 'fermmon.csv'
+
+    # Append-adds at last
+    fptr = open(filename, 'a')  # append mode
+    fptr.write(str)
+    fptr.close()
+
+# Write latest line for HTTP server
+def writeLatest(str):
+    filename = 'latest.csv'
+
+    # Append-adds at last
+    fptr = open(filename, 'w')  # write/clobber mode - we just want one line
+    fptr.write(str)
+    fptr.close()
+
+# What brew 'version' are we - keep logs
+def getVersion():
+    # Append-adds at last
+    fptr = open('version', 'r')  # read mode
+    ver = fptr.read()
+    fptr.close()
+    return ver
 
 # function to read ds18b20 probe
 def ds18B20(SensorID):
@@ -36,13 +60,14 @@ for ts in glob.glob("/sys/bus/w1/devices/28-*"):
     tempSensor = ts.split('/')[5]
     break # just grab the first one
 
-delta = 10
-duration = 30
+delta = 5
+duration = 20
 incr = 0
 
 co2 = tvoc = 0
 
 r = Rowi()
+version = getVersion()
 
 while True:
     # get (external) temp and humidity from the rowi and set the ccs811 env data
@@ -77,9 +102,11 @@ while True:
 
         relay = r.getRelayStatus() 
 
-        print("%s,%.3f,%.3f,%.3f,%s,%.3f,%.3f,%s" 
-                % (datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), 
-                co2, tvoc, temp, version, rtemp, rhumi, relay))
+        results = "%s,%.3f,%.3f,%.3f,%s,%.3f,%.3f,%s" 
+                        % (datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), 
+                        co2, tvoc, temp, version, rtemp, rhumi, relay)
+	writeResults(results)
+	writeLatest(results)
 
 	# reset vars
         incr = co2 = tvoc = 0

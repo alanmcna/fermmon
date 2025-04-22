@@ -40,13 +40,13 @@ r-cran
 # services
 ```
  sudo cp *.service /etc/systemd/system/
- systemctl enable ccs811.service http.service 
+ systemctl enable fermmon.service http.service 
 ```
 
 # cron
 ```
 # m h  dom mon dow   command
-*/30 * * * * cd /home/ubuntu && ./ccs811.sh >/dev/null 2>&1
+*/30 * * * * cd /home/ubuntu/fermmon && ./fermmon.sh >/dev/null 2>&1
 ```
 
 # testing
@@ -54,8 +54,8 @@ r-cran
 * testRowi.py to check that Rowi is working
 
 
-![Co2 and tVOC text](ccs811_co2.png)
-![Int/Ext Temp and Humidity](ccs811_temp.png)
+![Co2 and tVOC text](fermmon_co2.png)
+![Int/Ext Temp and Humidity](fermmon_temp.png)
 
 # references
 
