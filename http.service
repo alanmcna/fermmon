@@ -6,7 +6,7 @@ After=multi-user.target
 Type=simple
 Restart=always
 WorkingDirectory=/home/ubuntu/fermmon
-ExecStart=/usr/bin/python python -m http.server
+ExecStart=/usr/bin/python -m http.server
 
 [Install]
 WantedBy=multi-user.target

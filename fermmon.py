@@ -10,7 +10,8 @@ def writeResults(str):
 
     # Append-adds at last
     fptr = open(filename, 'a')  # append mode
-    fptr.write(str)
+    print("info: writing results - %s" % (str))
+    fptr.write("%s\n" % (str))
     fptr.close()
 
 # Write latest line for HTTP server
@@ -19,16 +20,21 @@ def writeLatest(str):
 
     # Append-adds at last
     fptr = open(filename, 'w')  # write/clobber mode - we just want one line
-    fptr.write(str)
+    print("info: writing latest - %s" % (str))
+    fptr.write("%s\n" % (str))
     fptr.close()
 
 # What brew 'version' are we - keep logs
 def getVersion():
     # Append-adds at last
     fptr = open('version', 'r')  # read mode
-    ver = fptr.read()
+    content = fptr.read()
+    splited_data = content.splitlines()
+    # Joining the lines
+    version = ''.join(splited_data)
     fptr.close()
-    return ver
+    print("info: version is - %s" % (version))
+    return version
 
 # function to read ds18b20 probe
 def ds18B20(SensorID):
@@ -49,7 +55,7 @@ def ds18B20(SensorID):
 ccs811Sensor = qwiic_ccs811.QwiicCcs811()
 
 if ccs811Sensor.is_connected() == False:
-    print("The Qwiic CCS811 device isn't connected to the system. Please check your connection", file=sys.stderr)
+    print("Error: the qwiic CCS811 device isn't connected to the system - please check your connection", file=sys.stderr)
     sys.exit(0)
 
 ccs811Sensor.begin()
@@ -79,8 +85,11 @@ while True:
 
         co2 += ccs811Sensor.get_co2()
         tvoc += ccs811Sensor.get_tvoc()
+        print("debug: co2:%.02f, tvoc:%.02f, incr:%d" % (co2, tvoc, incr));
 
         incr+=delta
+    else:
+        print("debug: ccs811 data unavailable (incr:%d, delta:%d)" % (incr, delta));
 
     if incr >= duration:
         co2=co2/(incr/delta)
@@ -102,13 +111,13 @@ while True:
 
         relay = r.getRelayStatus() 
 
-        results = "%s,%.3f,%.3f,%.3f,%s,%.3f,%.3f,%s" 
-                        % (datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), 
-                        co2, tvoc, temp, version, rtemp, rhumi, relay)
-	writeResults(results)
-	writeLatest(results)
+        results = "%s,%.3f,%.3f,%.3f,%s,%.3f,%.3f,%s" % (datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), 
+			co2, tvoc, temp, version, rtemp, rhumi, relay)
+        writeResults(results)
+        writeLatest(results)
 
 	# reset vars
         incr = co2 = tvoc = 0
 
+    print("debug: about to sleep for %ds (incr:%d, duration:%d)" % (delta, incr, duration));
     time.sleep(delta)
