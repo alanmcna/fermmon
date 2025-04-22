@@ -42,7 +42,10 @@ enable_uart=1
 
 ## python packages
 
-- pip3 install sparkfun-qwiic-i2c
+- pip3 install sparkfun-qwiic-i2c # see also https://github.com/sparkfun/Qwiic_I2C_Py
+
+Note: see also https://github.com/sparkfun/Qwiic_CCS811_Py but there is a pull request open for this
+
 
 # services
 ```
