@@ -3,6 +3,7 @@ Description=Brew Fermentor Monitor
 After=multi-user.target
 
 [Service]
+Environment=PYTHONPATH=/home/ubuntu/.local/lib/python3.11/site-packages
 Type=simple
 Restart=always
 WorkingDirectory=/home/ubuntu/fermmon
