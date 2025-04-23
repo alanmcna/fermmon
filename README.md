@@ -56,13 +56,16 @@ Note: see also https://github.com/sparkfun/Qwiic_CCS811_Py but there is a pull r
 # cron
 ```
 # m h  dom mon dow   command
-*/30 * * * * cd /home/ubuntu/fermmon && ./fermmon.sh >/dev/null 2>&1
+*/5 * * * * cd /home/ubuntu/fermmon && /usr/bin/Rscript fermmon.r >/dev/null
 ```
 
 # testing
 * readTemp.py to check if the 1-wire temperature probe is working
 * testRowi.py to check that Rowi is working
-
+* check cron 
+** journalctl -u cron -f 
+* creck for debugging messages
+** journalctl -u fermmon -f
 
 ![Co2 and tVOC text](fermmon_co2.png)
 ![Int/Ext Temp and Humidity](fermmon_temp.png)
