@@ -95,6 +95,11 @@ $(document).ready(function() {
       processLatestData(data);
     }
   });
+
+  img=document.getElementsByTagName("img");
+  for(i=0; i<img.length; i++) {
+    img[i].src += '?ts='+ new Date().getTime();
+  }
 });
 
 function processLatestData(allText) {
