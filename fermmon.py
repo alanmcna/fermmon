@@ -16,10 +16,10 @@ def writeResults(str):
 
 # Write latest line for HTTP server
 def writeLatest(str):
-    global brew
+    global brew, url
     filename = 'latest.csv'
 
-    str = "%s,%s" % (str, brew)
+    str = "%s,%s,%s" % (str, brew, url)
 
     # Append-adds at last
     fptr = open(filename, 'w')  # write/clobber mode - we just want one line
@@ -34,11 +34,11 @@ def getVersion():
     with open('version.csv', 'r') as f:
         for line in f:
             stripped_line = line.strip()
-            version, brew = stripped_line.split(',')
+            version, brew, url = stripped_line.split(',')
             break # just the first line
 
-    print("info: version:%s, brew:%s" % (version, brew))
-    return version, brew
+    print("info: version:%s, brew:%s, url:%s" % (version, brew, url))
+    return version, brew, url
 
 # function to read ds18b20 probe
 def ds18B20(SensorID):
@@ -78,7 +78,7 @@ co2 = tvoc = 0
 
 r = Rowi()
 
-version, brew = getVersion()
+version, brew, url = getVersion()
 
 while True:
     # get (external) temp and humidity from the rowi and set the ccs811 env data
