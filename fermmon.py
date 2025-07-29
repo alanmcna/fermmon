@@ -4,6 +4,9 @@ import glob, os
 import sys
 from rowi import Rowi
 
+TARGET_TEMP = 19.5
+LOW_TEMP_WARNING = 10
+
 # Write to CSV - much faster than journalctrl
 def writeResults(str):
     filename = 'fermmon.csv'
@@ -104,13 +107,13 @@ while True:
         if temp is None:
             temp = 0 # just hack it
             
-        if temp > 12 and temp < 20 and r.getRelayStatus() == "0":
+        if temp > 12 and temp < TARGET_TEMP and r.getRelayStatus() == "0":
             r.setRelayStatus(True)
             print("debug: turning on rowi - too cold")
-        elif temp >= 20 and r.getRelayStatus() == "1":
+        elif temp >= TARGET_TEMP and r.getRelayStatus() == "1":
             r.setRelayStatus(False)
             print("debug: turning off rowi - too hot")
-        elif temp < 12 and r.getRelayStatus() == "1":
+        elif temp < LOW_TEMP_WARNING and r.getRelayStatus() == "1":
             r.setRelayStatus(False)
             print("debug: turning off rowi - bogus temp reading")
 
