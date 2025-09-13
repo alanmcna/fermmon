@@ -61,9 +61,13 @@ def ds18B20(SensorID):
 
 ccs811Sensor = qwiic_ccs811.QwiicCcs811()
 
-if ccs811Sensor.is_connected() == False:
-    print("Error: the qwiic CCS811 device isn't connected to the system - please check your connection", file=sys.stderr)
-    sys.exit(0)
+while True:
+    if ccs811Sensor.is_connected():
+        print("info: qwiic CCS811 device connected")
+        break
+    else:
+        print("Error: the qwiic CCS811 device isn't connected to the system - please check your connection", file=sys.stderr)
+        time.sleep(60)
 
 ccs811Sensor.begin()
 
