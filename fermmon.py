@@ -7,6 +7,8 @@ from rowi import Rowi
 TARGET_TEMP = 19.5
 LOW_TEMP_WARNING = 10
 
+last_reset_time = datetime.datetime.now()
+
 # Write to CSV - much faster than journalctrl
 def writeResults(str):
     filename = 'fermmon.csv'
@@ -59,6 +61,17 @@ def ds18B20(SensorID):
     txt_temp = line.split(" ")[9]
     return (float(txt_temp[2:])/1000.0)
 
+def reset_required():
+    current_time = datetime.datetime.now()
+    # Calculate the difference in time (timedelta object)
+    elapsed_time = current_time - last_reset_time
+
+    # Check if the total elapsed seconds is greater than or equal to 24 hours (86400 seconds)
+    if elapsed_time.total_seconds() >= 86400:
+        return True
+    return False
+
+
 ccs811Sensor = qwiic_ccs811.QwiicCcs811()
 
 while True:
@@ -66,7 +79,7 @@ while True:
         print("info: qwiic CCS811 device connected")
         break
     else:
-        print("Error: the qwiic CCS811 device isn't connected to the system - please check your connection", file=sys.stderr)
+        print("error: the qwiic CCS811 device isn't connected to the system - please check your connection", file=sys.stderr)
         time.sleep(60)
 
 ccs811Sensor.begin()
@@ -88,6 +101,12 @@ r = Rowi()
 version, brew, url = getVersion()
 
 while True:
+
+    if reset_required():
+        print("info: qwiic CCS811 device reset")
+        ccs811Sensor.begin()
+        last_reset_time = datetime.datetime.now()
+
     # get (external) temp and humidity from the rowi and set the ccs811 env data
     rtemp, rhumi = r.getTemperature()
     ccs811Sensor.set_environmental_data(rhumi,rtemp)
