@@ -18,7 +18,8 @@ rawdata$Relay <- as.numeric(rawdata$Relay)
 summary(rawdata)
 
 # filter out any duff readings
-co2data <- subset(rawdata, CO2<=25000 & tVOC<=25000)
+max_y = 7500
+co2data <- subset(rawdata, CO2<=max_y & tVOC<=max_y)
 attach(co2data)
 
 ## add extra space to right margin of plot within frame
@@ -26,7 +27,6 @@ par(mar=c(5, 5, 5, 5) + 0.1)
 
 # axis top end range
 #max_y = max(max(CO2,na.rm=TRUE), max(tVOC,na.rm=TRUE))
-max_y = 25000
 
 plot(Date.Time,tVOC,pch=1,main="CO2 and tVOC over Time",col=alpha("darkorange",0.25),xlab="Date/Time",ylab="",ylim=c(0,max_y), axes="FALSE")
 r <- as.POSIXct(round(range(Date.Time), "hours"))
@@ -63,7 +63,7 @@ box()
 
 par(new=TRUE)
 ## RELAY STATUS PLOT - TRY adding to temp graph
-plot(Date.Time,Relay,pch=20,type="h",col=alpha("olivedrab",0.05),xlab="",ylab="",ylim=c(0,1), axes="FALSE")
+plot(Date.Time,Relay,pch=20,type="h",col=alpha("yellow",0.10),xlab="",ylab="",ylim=c(0,1), axes="FALSE")
 grid(nx=NA,ny=NULL)
 
 par(new=TRUE)
