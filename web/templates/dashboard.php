@@ -46,11 +46,6 @@
             </select>
         </div>
     </div>
-    <div class="row mb-3">
-        <div class="col">
-            <span id="brewInfo" class="text-muted small"></span>
-        </div>
-    </div>
     <?php endif; ?>
     <div id="cachedBanner" class="alert alert-secondary py-2 small mb-2" style="display:none" role="status"></div>
     <div id="notificationPrompt" class="alert alert-light py-2 small mb-2" style="display:none">
@@ -59,6 +54,12 @@
     </div>
     <div class="row"><div class="col"><hr/></div></div>
 
+    <?php if (!empty($versions)): ?>
+    <div class="row">
+        <div class="col"><b>Name:</b></div>
+        <div class="col text-end" id="brewInfo"></div>
+    </div>
+    <?php endif; ?>
     <div class="row">
         <div class="col"><b>Latest Reading:</b></div>
         <div class="col text-end" id="dateTime"><?= htmlspecialchars($latest['date_time'] ?? '—') ?></div>
@@ -455,13 +456,13 @@
         const brew = opt?.dataset?.brew || '';
         const url = opt?.dataset?.url || '';
         if (!brew) {
-            info.innerHTML = '';
+            info.innerHTML = '—';
             return;
         }
         if (url) {
-            info.innerHTML = 'Name: <a href="' + escapeHtml(url) + '" target="_blank" rel="noopener">' + escapeHtml(brew) + '</a>';
+            info.innerHTML = '<a href="' + escapeHtml(url) + '" target="_blank" rel="noopener">' + escapeHtml(brew) + '</a>';
         } else {
-            info.innerHTML = 'Name: ' + escapeHtml(brew);
+            info.textContent = brew;
         }
     }
     function escapeHtml(s) {
