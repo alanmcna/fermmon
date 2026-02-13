@@ -35,15 +35,20 @@
 
 <div class="container my-4">
     <?php if (!empty($versions)): ?>
-    <div class="row mb-3">
+    <div class="row mb-2">
         <div class="col">
             <select class="form-select fw-bold" id="versionFilter">
                 <?php foreach ($versions as $v): ?>
-                <option value="<?= htmlspecialchars($v['version']) ?>" <?= ($v['version'] === ($currentVersion ?? '')) ? 'selected' : '' ?>>
+                <option value="<?= htmlspecialchars($v['version']) ?>" data-brew="<?= htmlspecialchars($v['brew'] ?? '') ?>" data-url="<?= htmlspecialchars($v['url'] ?? '') ?>" <?= ($v['version'] === ($currentVersion ?? '')) ? 'selected' : '' ?>>
                     <?= htmlspecialchars('v' . $v['version'] . ' – ' . $v['brew']) ?><?= ($v['is_current'] ?? 0) ? ' (current)' : '' ?>
                 </option>
                 <?php endforeach; ?>
             </select>
+        </div>
+    </div>
+    <div class="row mb-3">
+        <div class="col">
+            <span id="brewInfo" class="text-muted small"></span>
         </div>
     </div>
     <?php endif; ?>
@@ -442,8 +447,34 @@
         }
     }
 
+    function updateBrewInfo() {
+        const sel = document.getElementById('versionFilter');
+        const info = document.getElementById('brewInfo');
+        if (!sel || !info) return;
+        const opt = sel.options[sel.selectedIndex];
+        const brew = opt?.dataset?.brew || '';
+        const url = opt?.dataset?.url || '';
+        if (!brew) {
+            info.innerHTML = '';
+            return;
+        }
+        if (url) {
+            info.innerHTML = 'Name: <a href="' + escapeHtml(url) + '" target="_blank" rel="noopener">' + escapeHtml(brew) + '</a>';
+        } else {
+            info.innerHTML = 'Name: ' + escapeHtml(brew);
+        }
+    }
+    function escapeHtml(s) {
+        const div = document.createElement('div');
+        div.textContent = s;
+        return div.innerHTML;
+    }
+
     const versionFilter = document.getElementById('versionFilter');
-    if (versionFilter) versionFilter.addEventListener('change', refreshView);
+    if (versionFilter) {
+        versionFilter.addEventListener('change', () => { updateBrewInfo(); refreshView(); });
+    }
+    updateBrewInfo();
     const chartRange = document.getElementById('chartRange');
     if (chartRange) chartRange.addEventListener('change', refreshView);
 

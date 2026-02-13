@@ -115,7 +115,7 @@ class DataService
         if (!$this->db) return [];
 
         $stmt = $this->db->query(
-            'SELECT version, brew, is_current FROM versions 
+            'SELECT version, brew, url, is_current FROM versions 
              ORDER BY is_current DESC, CAST(version AS INTEGER) DESC'
         );
         return $stmt->fetchAll(\PDO::FETCH_ASSOC);
