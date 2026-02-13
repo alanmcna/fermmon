@@ -327,7 +327,7 @@
                 maintainAspectRatio: false,
                 interaction: { mode: 'index', intersect: false },
                 scales: {
-                    x: { type: 'linear', min: 0, max: Math.max(1, maxDay),
+                    x: { type: 'linear', min: 0, max: Math.max(1, Math.ceil(maxDay)),
                          ticks: { stepSize: 1, callback: (v) => xTick(v) },
                          title: { display: true, text: 'From ' + startLabel } },
                     y: { type: 'linear', position: 'left', min: 0, suggestedMax: Math.max(4000, maxCo2 * 1.1), title: { display: true, text: 'CO2 (ppm)' } },
@@ -361,7 +361,7 @@
                 maintainAspectRatio: false,
                 interaction: { mode: 'index', intersect: false },
                 scales: {
-                    x: { type: 'linear', min: 0, max: Math.max(1, maxDay),
+                    x: { type: 'linear', min: 0, max: Math.max(1, Math.ceil(maxDay)),
                          ticks: { stepSize: 1, callback: (v) => xTick(v) },
                          title: { display: true, text: 'From ' + startLabel } },
                     y: { type: 'linear', position: 'left', min: 0, max: 50, title: { display: true, text: '°C' } },
