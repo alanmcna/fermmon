@@ -96,6 +96,18 @@ php -S localhost:8080 -t web/public web/public/router.php
 
 Then open http://localhost:8080. The router forwards requests to `index.php` for clean URLs.
 
+## Control page
+
+The **Control** page (`/control`) lets you manage recording and versions from the browser:
+
+| Feature | Description |
+|---------|-------------|
+| Start/Stop recording | Pause data writes while fermmon keeps running (temp/relay still active). Use when changing batches. |
+| Add new version | Add a new brew and set it as current. Best done when recording is paused. |
+| Timing | Adjust sample and write intervals (advanced). |
+
+fermmon reads the `config` table each cycle, so changes take effect without restart.
+
 # services
 
 ```bash
@@ -104,7 +116,9 @@ sudo systemctl enable fermmon.service   # start on boot
 sudo systemctl start fermmon.service    # start now
 ```
 
-The old `http.service` (Python HTTP server) is replaced by Apache/nginx. Use `apache-fermmon.conf` or `nginx-fermmon.conf` as a template for your web server config. Point DocumentRoot to `web/public/`.
+The old `http.service` (Python HTTP server) is replaced by Apache/nginx. Point DocumentRoot to `web/public/`.
+
+**Apache (single-site setup)**: See `apache-fermmon.conf` for step-by-step instructions. After install, run `sudo ./scripts/setup-web-permissions.sh` so Apache can write to the DB (Control page, config, etc.).
 
 # operations
 
@@ -118,7 +132,11 @@ The old `http.service` (Python HTTP server) is replaced by Apache/nginx. Use `ap
 
 # creating a new brew
 
-When you begin a new fermentation, set the current version so new readings are tagged correctly:
+When you begin a new fermentation, set the current version so new readings are tagged correctly.
+
+**Via Control page** (recommended): Open `/control`, pause recording, add the new version (number, brew name, optional URL), then start recording again.
+
+**Via CLI**:
 
 ```bash
 cd /home/ubuntu/fermmon
@@ -126,6 +144,27 @@ python scripts/set-current-version.py 15 "My New Brew Name" https://optional-url
 ```
 
 Accepts version as `15` or `v15`. The version is added to the DB and marked current. No restart needed.
+
+# backup and restore
+
+Keep the DB on the Pi; back up to USB or NFS. SQLite on network/USB filesystems can be unreliable, so avoid putting the live DB there.
+
+**Backup** (uses `sqlite3 .backup` – safe while fermmon is running):
+
+```bash
+./scripts/backup-db.sh /media/usb/fermmon-backups   # USB mount
+./scripts/backup-db.sh /mnt/nfs/fermmon-backups    # NFS mount
+```
+
+The script keeps the last 7 backups. Add to crontab for daily runs:
+
+```
+0 2 * * * /home/ubuntu/fermmon/scripts/backup-db.sh /media/usb/fermmon-backups
+```
+
+**Restore**: Stop fermmon, copy a backup over `data/fermmon.db`, start fermmon.
+
+**USB mount**: Add to `/etc/fstab` so the drive mounts at boot (use UUID for reliability). Ensure the mount point exists and is writable.
 
 # migration (one-time, when switching from CSV)
 
@@ -157,7 +196,7 @@ Colours follow common IAQ and environmental conventions:
 | Int. temp | Red (#dc2626) | Thermometer convention (warm) |
 | Ext. temp | Orange (#ea580c) | Distinct from internal |
 | Humidity | Cyan (#0891b2) | Water convention |
-| Heat belt | Emerald (#059669) | Active/on |
+| Heat belt | Yellow (#f5c842) | Active/on |
 
 Dashed reference lines show "normal air" (1000 ppm CO2, 200 ppb tVOC) for comparison.
 
