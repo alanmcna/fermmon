@@ -21,17 +21,9 @@
         @media (min-width: 768px) { .chart-container { height: 360px; } .chart-container canvas { max-height: 360px; } }
         .chart-loading { position: absolute; inset: 0; background: rgba(255,255,255,0.85); display: flex; align-items: center; justify-content: center; z-index: 10; }
         .chart-loading.hidden { display: none !important; }
-        .chart-loading-anim { width: 64px; height: 80px; }
-        .chart-loading-anim svg { width: 100%; height: 100%; }
-        .ferm-liquid { transform-origin: bottom; animation: ferm-fill 2s steps(10) infinite; }
-        .ferm-bubble { animation: ferm-bubble 1.5s ease-in-out infinite; }
-        .ferm-bubble:nth-child(1) { animation-delay: 0s; }
-        .ferm-bubble:nth-child(2) { animation-delay: 0.2s; }
-        .ferm-bubble:nth-child(3) { animation-delay: 0.4s; }
-        .ferm-bubble:nth-child(4) { animation-delay: 0.6s; }
-        .ferm-bubble:nth-child(5) { animation-delay: 0.8s; }
-        @keyframes ferm-fill { 0% { transform: scaleY(0); } 100% { transform: scaleY(1); } }
-        @keyframes ferm-bubble { 0%, 100% { opacity: 0.3; transform: translateY(0) scale(1); } 50% { opacity: 0.9; transform: translateY(-2px) scale(1.2); } }
+        .chart-loading-anim { width: 80px; height: 80px; }
+        .chart-loading-anim img { width: 100%; height: 100%; animation: pulse 1.2s ease-in-out infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 0.7; } 50% { opacity: 1; } }
         .chart-tooltip { position: fixed; padding: 8px 12px; background: rgba(0,0,0,0.85); color: #fff; border-radius: 6px; font-size: 12px; pointer-events: auto; z-index: 100; max-width: 280px; box-shadow: 0 2px 8px rgba(0,0,0,0.3); display: none; }
         .chart-tooltip .tt-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
         .chart-tooltip .tt-close { background: transparent; border: none; color: #fff; cursor: pointer; padding: 4px 8px; font-size: 18px; line-height: 1; opacity: 0.8; min-width: 36px; min-height: 36px; -webkit-tap-highlight-color: transparent; }
@@ -128,47 +120,21 @@
         </div>
         <div class="col-auto">
             <select class="form-select form-select-sm" id="chartRange" style="width: auto">
-                <option value="12h">Last 12 hours</option>
-                <option value="3d">Last 3 days</option>
-                <option value="all" selected>All</option>
+                <option value="24h" selected>Last 24 hours</option>
+                <option value="5d">Last 5 days</option>
+                <option value="all">All</option>
             </select>
         </div>
     </div>
     <div class="chart-container position-relative">
         <div class="chart-loading" id="chartCO2Loading">
-            <div class="chart-loading-anim" aria-hidden="true">
-                <svg viewBox="0 0 64 80" xmlns="http://www.w3.org/2000/svg">
-                    <defs><clipPath id="ferm-vessel-co2"><path d="M18 8 L18 72 Q18 80 32 80 Q46 80 46 72 L46 8 Q46 0 32 0 Q18 0 18 8 Z"/></clipPath></defs>
-                    <path d="M18 8 L18 72 Q18 80 32 80 Q46 80 46 72 L46 8 Q46 0 32 0 Q18 0 18 8 Z" fill="none" stroke="#0d6efd" stroke-width="2"/>
-                    <g clip-path="url(#ferm-vessel-co2)">
-                        <rect x="20" y="20" width="24" height="60" fill="#0d6efd" opacity="0.6" class="ferm-liquid"/>
-                        <circle cx="26" cy="28" r="2" fill="#fff" opacity="0.5" class="ferm-bubble"/>
-                        <circle cx="32" cy="26" r="1.5" fill="#fff" opacity="0.5" class="ferm-bubble"/>
-                        <circle cx="38" cy="30" r="1" fill="#fff" opacity="0.5" class="ferm-bubble"/>
-                        <circle cx="28" cy="32" r="1.2" fill="#fff" opacity="0.5" class="ferm-bubble"/>
-                        <circle cx="36" cy="27" r="0.8" fill="#fff" opacity="0.5" class="ferm-bubble"/>
-                    </g>
-                </svg>
-            </div>
+            <div class="chart-loading-anim" aria-hidden="true"><img src="/fermmon-logo.png" alt="Loading"></div>
         </div>
         <canvas id="chartCO2"></canvas>
     </div>
     <div class="chart-container position-relative">
         <div class="chart-loading" id="chartTempLoading">
-            <div class="chart-loading-anim" aria-hidden="true">
-                <svg viewBox="0 0 64 80" xmlns="http://www.w3.org/2000/svg">
-                    <defs><clipPath id="ferm-vessel-temp"><path d="M18 8 L18 72 Q18 80 32 80 Q46 80 46 72 L46 8 Q46 0 32 0 Q18 0 18 8 Z"/></clipPath></defs>
-                    <path d="M18 8 L18 72 Q18 80 32 80 Q46 80 46 72 L46 8 Q46 0 32 0 Q18 0 18 8 Z" fill="none" stroke="#0d6efd" stroke-width="2"/>
-                    <g clip-path="url(#ferm-vessel-temp)">
-                        <rect x="20" y="20" width="24" height="60" fill="#0d6efd" opacity="0.6" class="ferm-liquid"/>
-                        <circle cx="26" cy="28" r="2" fill="#fff" opacity="0.5" class="ferm-bubble"/>
-                        <circle cx="32" cy="26" r="1.5" fill="#fff" opacity="0.5" class="ferm-bubble"/>
-                        <circle cx="38" cy="30" r="1" fill="#fff" opacity="0.5" class="ferm-bubble"/>
-                        <circle cx="28" cy="32" r="1.2" fill="#fff" opacity="0.5" class="ferm-bubble"/>
-                        <circle cx="36" cy="27" r="0.8" fill="#fff" opacity="0.5" class="ferm-bubble"/>
-                    </g>
-                </svg>
-            </div>
+            <div class="chart-loading-anim" aria-hidden="true"><img src="/fermmon-logo.png" alt="Loading"></div>
         </div>
         <canvas id="chartTemp"></canvas>
     </div>
@@ -245,8 +211,8 @@
     function getChartHours() {
         const sel = document.getElementById('chartRange');
         if (!sel) return null;
-        if (sel.value === '12h') return 12;
-        if (sel.value === '3d') return 72;
+        if (sel.value === '24h') return 24;
+        if (sel.value === '5d') return 120;
         return null;
     }
 
@@ -284,8 +250,8 @@
 
         const xTick = (v) => {
             if (v === 0) return 'Start';
-            if (hoursRange === 12) return (v * 24).toFixed(0) + 'h';
-            if (hoursRange === 72) return (v % 1 === 0 ? 'Day ' + v : '');
+            if (hoursRange === 24) return (v * 24).toFixed(0) + 'h';
+            if (hoursRange === 120) return (v % 1 === 0 ? 'Day ' + v : '');
             return v % 1 === 0 ? 'Day ' + v : '';
         };
 
