@@ -49,9 +49,50 @@
         </div>
     </div>
 
+    <div class="card mb-4">
+        <div class="card-header">Temperature alerts</div>
+        <div class="card-body">
+            <p class="text-muted small">Target temp (heat belt trigger) and warning threshold. Alert when internal temp is ± threshold from target.</p>
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label">Target temp (°C)</label>
+                    <input type="number" class="form-control" id="targetTemp" min="10" max="30" step="0.5" value="<?= (float)($config['target_temp'] ?? 19.5) ?>">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Warning threshold (°C)</label>
+                    <input type="number" class="form-control" id="tempWarningThreshold" min="1" max="10" step="0.5" value="<?= (float)($config['temp_warning_threshold'] ?? 3) ?>">
+                </div>
+                <div class="col-md-4 d-flex align-items-end">
+                    <button type="button" class="btn btn-outline-secondary" id="btnSaveTemp">Save</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header">Dashboard refresh</div>
+        <div class="card-body">
+            <p class="text-muted small">How often the dashboard polls for new data. Summary = latest readings; Charts = incremental chart update.</p>
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label">Summary (s)</label>
+                    <input type="number" class="form-control" id="summaryRefreshInterval" min="10" max="300" value="<?= (int)($config['summary_refresh_interval'] ?? 30) ?>">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Charts (s)</label>
+                    <input type="number" class="form-control" id="chartUpdateInterval" min="60" max="3600" value="<?= (int)($config['chart_update_interval'] ?? 300) ?>">
+                </div>
+                <div class="col-md-4 d-flex align-items-end">
+                    <button type="button" class="btn btn-outline-secondary" id="btnSaveRefresh">Save</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="card">
         <div class="card-header">Timing (advanced)</div>
         <div class="card-body">
+            <p class="text-muted small">fermmon sampling and write intervals.</p>
             <div class="row g-3">
                 <div class="col-md-4">
                     <label class="form-label">Sample interval (s)</label>
@@ -80,6 +121,7 @@
 
     async function updateStatus() {
         const cfg = await getConfig();
+        if (window.updateNavTimers) updateNavTimers(cfg);
         const recording = cfg.recording === '1';
         document.getElementById('recordingStatus').textContent = recording ? 'Recording' : 'Paused';
         document.getElementById('recordingStatus').className = 'badge ' + (recording ? 'bg-success' : 'bg-secondary');
@@ -117,6 +159,28 @@
             const err = await r.json();
             alert(err.error || 'Failed');
         }
+    });
+
+    document.getElementById('btnSaveTemp').addEventListener('click', async () => {
+        const tt = document.getElementById('targetTemp').value;
+        const tw = document.getElementById('tempWarningThreshold').value;
+        await fetch(base + '/api/config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ target_temp: tt, temp_warning_threshold: tw })
+        });
+        alert('Saved. Note: fermmon.py uses its own TARGET_TEMP (19.5) for the heat belt.');
+    });
+
+    document.getElementById('btnSaveRefresh').addEventListener('click', async () => {
+        const sri = document.getElementById('summaryRefreshInterval').value;
+        const cui = document.getElementById('chartUpdateInterval').value;
+        await fetch(base + '/api/config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ summary_refresh_interval: sri, chart_update_interval: cui })
+        });
+        alert('Saved. Dashboard will use new intervals on next load.');
     });
 
     document.getElementById('btnSaveTiming').addEventListener('click', async () => {

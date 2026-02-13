@@ -120,14 +120,19 @@ class DataService
      */
     public function getConfig(): array
     {
-        if (!$this->db) return ['recording' => '1', 'sample_interval' => '10', 'write_interval' => '300'];
+        if (!$this->db) return ['recording' => '1', 'sample_interval' => '10', 'write_interval' => '300',
+            'summary_refresh_interval' => '30', 'chart_update_interval' => '300',
+            'target_temp' => '19.5', 'temp_warning_threshold' => '3'];
 
         $stmt = $this->db->query('SELECT key, value FROM config');
         $config = [];
         while ($row = $stmt->fetch(\PDO::FETCH_ASSOC)) {
             $config[$row['key']] = $row['value'];
         }
-        return array_merge(['recording' => '1', 'sample_interval' => '10', 'write_interval' => '300'], $config);
+        $defaults = ['recording' => '1', 'sample_interval' => '10', 'write_interval' => '300',
+            'summary_refresh_interval' => '30', 'chart_update_interval' => '300',
+            'target_temp' => '19.5', 'temp_warning_threshold' => '3'];
+        return array_merge($defaults, $config);
     }
 
     /**

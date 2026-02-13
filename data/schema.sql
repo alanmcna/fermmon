@@ -34,3 +34,7 @@ CREATE TABLE IF NOT EXISTS config (
 INSERT OR IGNORE INTO config (key, value) VALUES ('recording', '1');
 INSERT OR IGNORE INTO config (key, value) VALUES ('sample_interval', '10');
 INSERT OR IGNORE INTO config (key, value) VALUES ('write_interval', '300');
+INSERT OR IGNORE INTO config (key, value) VALUES ('summary_refresh_interval', '30');
+INSERT OR IGNORE INTO config (key, value) VALUES ('chart_update_interval', '300');
+INSERT OR IGNORE INTO config (key, value) VALUES ('target_temp', '19.5');
+INSERT OR IGNORE INTO config (key, value) VALUES ('temp_warning_threshold', '3');

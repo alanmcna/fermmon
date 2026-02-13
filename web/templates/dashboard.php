@@ -52,6 +52,10 @@
     </div>
     <?php endif; ?>
     <div id="cachedBanner" class="alert alert-secondary py-2 small mb-2" style="display:none" role="status"></div>
+    <div id="notificationPrompt" class="alert alert-light py-2 small mb-2" style="display:none">
+        <button type="button" class="btn btn-sm btn-outline-primary" id="btnEnableAlerts">Enable temperature alerts</button>
+        <span class="ms-2 text-muted">Get notified when temp is ±3°C from target</span>
+    </div>
     <div class="row"><div class="col"><hr/></div></div>
 
     <div class="row">
@@ -62,7 +66,10 @@
 
     <div class="row">
         <div class="col"><b>Int. Temperature:</b></div>
-        <div class="col text-end" id="intTemp"><?= $latest ? number_format($latest['temp'], 1) . ' °C' : '—' ?></div>
+        <div class="col text-end">
+            <span id="intTemp"><?= $latest ? number_format($latest['temp'], 1) . ' °C' : '—' ?></span>
+            <span id="intTempWarning" class="ms-1" style="display:none" title="Temperature outside target range">🔥</span>
+        </div>
     </div>
     <div class="row"><div class="col"><hr/></div></div>
 
@@ -102,6 +109,10 @@
 (function() {
     const baseUrl = window.location.origin;
     let chartCO2, chartTemp;
+    let summaryRefreshMs = 30000, chartUpdateMs = 300000;
+    let targetTemp = 19.5, tempWarningThreshold = 3;
+    let lastTempWarningNotify = 0;
+    const TEMP_NOTIFY_COOLDOWN = 5 * 60 * 1000;  // 5 min between notifications
 
     function showCachedBanner(cachedDate) {
         const el = document.getElementById('cachedBanner');
@@ -128,6 +139,19 @@
         const d = await r.json();
         document.getElementById('dateTime').textContent = d.date_time ? new Date(d.date_time + ' UTC').toLocaleString() : '—';
         document.getElementById('intTemp').textContent = d.temp != null ? d.temp.toFixed(1) + ' °C' : '—';
+        const intTempEl = document.getElementById('intTempWarning');
+        const tempOutOfRange = d.temp != null && (d.temp < targetTemp - tempWarningThreshold || d.temp > targetTemp + tempWarningThreshold);
+        intTempEl.style.display = tempOutOfRange ? 'inline' : 'none';
+        if (tempOutOfRange && 'Notification' in window && Notification.permission === 'granted') {
+            const now = Date.now();
+            if (now - lastTempWarningNotify > TEMP_NOTIFY_COOLDOWN) {
+                lastTempWarningNotify = now;
+                new Notification('Fermmon: Temperature alert', {
+                    body: 'Internal temp ' + d.temp.toFixed(1) + ' °C is outside target ' + targetTemp + ' ±' + tempWarningThreshold + ' °C',
+                    icon: '/fermmon-32.png'
+                });
+            }
+        }
         document.getElementById('heatBelt').textContent = d.relay ? 'On' : 'Off';
         document.getElementById('envTemp').textContent = d.rtemp != null ? d.rtemp.toFixed(1) + ' °C' : '—';
         document.getElementById('envHumi').textContent = d.rhumi != null ? d.rhumi.toFixed(1) + ' %' : '—';
@@ -253,17 +277,31 @@
     }
 
     let cachedReadings = [];
-    const CHART_UPDATE_INTERVAL = 5 * 60 * 1000;  // 5 min (matches fermmon write interval)
+    let summaryIntervalId, chartIntervalId;
 
     async function refreshView() {
         const overlay = document.getElementById('loadingOverlay');
         if (overlay) overlay.classList.remove('hidden');
         try {
+            const cfgRes = await fetch(baseUrl + '/api/config');
+            const cfg = await cfgRes.json();
+            summaryRefreshMs = parseInt(cfg.summary_refresh_interval || 30, 10) * 1000;
+            chartUpdateMs = parseInt(cfg.chart_update_interval || 300, 10) * 1000;
+            targetTemp = parseFloat(cfg.target_temp || 19.5);
+            tempWarningThreshold = parseFloat(cfg.temp_warning_threshold || 3);
+            if (window.updateNavTimers) window.updateNavTimers(cfg);
+            if (summaryIntervalId) clearInterval(summaryIntervalId);
+            if (chartIntervalId) clearInterval(chartIntervalId);
             const sel = document.getElementById('versionFilter');
             const version = sel ? sel.value : null;
             cachedReadings = await fetchReadings(version);
             if (cachedReadings.length) initCharts(cachedReadings);
             await fetchLatest(version);
+            summaryIntervalId = setInterval(() => {
+                const s = document.getElementById('versionFilter');
+                if (s) fetchLatest(s.value);
+            }, summaryRefreshMs);
+            chartIntervalId = setInterval(incrementalChartUpdate, chartUpdateMs);
         } finally {
             if (overlay) overlay.classList.add('hidden');
         }
@@ -286,12 +324,18 @@
     const hideOutliers = document.getElementById('hideOutliers');
     if (hideOutliers) hideOutliers.addEventListener('change', refreshView);
 
+    const notificationPrompt = document.getElementById('notificationPrompt');
+    const btnEnableAlerts = document.getElementById('btnEnableAlerts');
+    if (notificationPrompt && btnEnableAlerts && 'Notification' in window && Notification.permission === 'default') {
+        notificationPrompt.style.display = 'block';
+        btnEnableAlerts.addEventListener('click', () => {
+            Notification.requestPermission().then(() => {
+                notificationPrompt.style.display = Notification.permission === 'granted' ? 'none' : 'block';
+            });
+        });
+    }
+
     refreshView();
-    setInterval(() => {
-        const sel = document.getElementById('versionFilter');
-        if (sel) fetchLatest(sel.value);
-    }, 30000);
-    setInterval(incrementalChartUpdate, CHART_UPDATE_INTERVAL);
 })();
 </script>
 </body>
