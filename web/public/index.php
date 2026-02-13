@@ -100,10 +100,12 @@ $app->get('/', function (Request $request, Response $response) use ($dataService
     $versions = $dataService->getVersions();
     $currentVersion = $versions[0]['version'] ?? null;
     $latest = $dataService->getLatest($currentVersion);
+    $config = $dataService->getConfig();
     return $renderer->render($response, 'dashboard.php', [
         'latest' => $latest,
         'versions' => $versions,
         'currentVersion' => $currentVersion,
+        'config' => $config,
         'navActive' => 'dashboard',
     ]);
 });

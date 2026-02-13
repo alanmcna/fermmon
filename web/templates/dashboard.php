@@ -66,9 +66,28 @@
 
     <div class="row">
         <div class="col"><b>Int. Temperature:</b></div>
-        <div class="col text-end">
+        <div class="col text-end d-flex align-items-center justify-content-end gap-1">
             <span id="intTemp"><?= $latest ? number_format($latest['temp'], 1) . ' °C' : '—' ?></span>
-            <span id="intTempWarning" class="ms-1" style="display:none" title="Temperature outside target range">🔥</span>
+            <?php
+            $tempColor = '#94a3b8';
+            if (isset($latest['temp'])) {
+                $t = (float)$latest['temp'];
+                $target = (float)(($config ?? [])['target_temp'] ?? 19.5);
+                $d = $t - $target;
+                if ($d >= 3) $tempColor = '#dc2626';
+                elseif ($d >= 2) $tempColor = '#f97316';
+                elseif ($d >= 1) $tempColor = '#eab308';
+                elseif ($d >= -1) $tempColor = '#22c55e';
+                elseif ($d >= -2) $tempColor = '#38bdf8';
+                elseif ($d >= -3) $tempColor = '#1d4ed8';
+                else $tempColor = '#1e293b';
+            }
+            ?>
+            <svg id="intTempIcon" width="18" height="26" viewBox="0 0 18 26" fill="none" xmlns="http://www.w3.org/2000/svg" class="flex-shrink-0" style="color:<?= $tempColor ?>" title="Temperature">
+                <rect x="6" y="0" width="6" height="16" rx="2" fill="currentColor" opacity="0.3"/>
+                <rect x="6" y="0" width="6" height="16" rx="2" stroke="currentColor" stroke-width="1.5" fill="none"/>
+                <circle cx="9" cy="22" r="4" fill="currentColor"/>
+            </svg>
         </div>
     </div>
     <div class="row"><div class="col"><hr/></div></div>
@@ -97,10 +116,11 @@
     </div>
     <div class="row"><div class="col"><hr/></div></div>
 
-    <div class="chart-container">
+    <div class="chart-container position-relative">
         <canvas id="chartCO2"></canvas>
+        <div id="chartTooltip" class="chart-tooltip" role="tooltip"></div>
     </div>
-    <div class="chart-container">
+    <div class="chart-container position-relative">
         <canvas id="chartTemp"></canvas>
     </div>
 </div>
@@ -113,6 +133,18 @@
     let targetTemp = 19.5, tempWarningThreshold = 3;
     let lastTempWarningNotify = 0;
     const TEMP_NOTIFY_COOLDOWN = 5 * 60 * 1000;  // 5 min between notifications
+
+    function tempColor(temp) {
+        if (temp == null) return '#94a3b8';
+        const d = temp - targetTemp;
+        if (d >= 3) return '#dc2626';      // red
+        if (d >= 2) return '#f97316';     // orange
+        if (d >= 1) return '#eab308';      // yellow
+        if (d >= -1) return '#22c55e';     // green (just right)
+        if (d >= -2) return '#38bdf8';    // light blue
+        if (d >= -3) return '#1d4ed8';     // dark blue
+        return '#1e293b';                   // black/dark
+    }
 
     function showCachedBanner(cachedDate) {
         const el = document.getElementById('cachedBanner');
@@ -139,9 +171,9 @@
         const d = await r.json();
         document.getElementById('dateTime').textContent = d.date_time ? new Date(d.date_time + ' UTC').toLocaleString() : '—';
         document.getElementById('intTemp').textContent = d.temp != null ? d.temp.toFixed(1) + ' °C' : '—';
-        const intTempEl = document.getElementById('intTempWarning');
+        const intTempIcon = document.getElementById('intTempIcon');
+        if (intTempIcon) intTempIcon.style.color = tempColor(d.temp);
         const tempOutOfRange = d.temp != null && (d.temp < targetTemp - tempWarningThreshold || d.temp > targetTemp + tempWarningThreshold);
-        intTempEl.style.display = tempOutOfRange ? 'inline' : 'none';
         if (tempOutOfRange && 'Notification' in window && Notification.permission === 'granted') {
             const now = Date.now();
             if (now - lastTempWarningNotify > TEMP_NOTIFY_COOLDOWN) {
