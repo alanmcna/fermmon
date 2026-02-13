@@ -6,6 +6,38 @@ Also have a Rowi (API enabled plug) to turn on my heater belt if the temp drops 
 
 Currently a WIP - will improve and add some 3d print files for the housing ( fits on top of the airlock).
 
+# data collection
+
+The CCS811 sensor (Mode 1) produces new eCO2/tVOC readings every 1 second. fermmon.py polls every 10 seconds, accumulates samples, and writes one averaged reading to SQLite every 5 minutes. This gives ~288 readings/day (~2900 for a 10-day fermentation), which is sufficient to see the trend while keeping storage and chart load manageable.
+
+| Setting | Value | Purpose |
+|---------|-------|---------|
+| Poll interval | 10 s | Check sensor, read when data available |
+| Write interval | 5 min | DB write and temp/relay logic |
+| Samples per write | ~30 | Rolling average for noise reduction |
+
+## CCS811 operating modes
+
+| Mode | Interval | Use |
+|------|----------|-----|
+| 0 | Idle | No measurements, low power |
+| 1 | 1 s | Constant power (fermmon uses this) |
+| 2 | 10 s | Pulse heating, lower power |
+| 3 | 60 s | Low power pulse |
+| 4 | 250 ms | Raw data only, factory test |
+
+## Reset and mode change (CCS811 datasheet)
+
+**Software reset**: On startup, the qwiic library writes `0x11,0xE5,0x72,0x8A` to register 0xFF. This resets the device into Bootloader; `APP_START` then switches to Application mode. The sensor is left in a known state before setting Mode 1.
+
+**Mode change rules** (when changing drive mode at runtime):
+- **Lower sample rate** (e.g. Mode 1 → Mode 3): Put in Mode 0 (Idle) for **at least 10 minutes** before enabling the new mode.
+- **Higher sample rate** (e.g. Mode 3 → Mode 1): No wait required.
+
+fermmon starts in Mode 1 and does not change mode at runtime, so no idle transition is needed.
+
+**Burn-in**: 48-hour initial burn-in recommended for new sensors; 20 min warm-up when resuming use.
+
 # hardware
 
 * pi-zero 2w
@@ -36,9 +68,10 @@ enable_uart=1
 # packages
 
 - git 
-- r-recommended
-- r-cran-zoo
 - python3-pip
+- php (>=7.4) php-sqlite3 php-mbstring
+- apache2 (or nginx + php-fpm) with mod_rewrite
+- composer
 
 ## python packages
 
@@ -46,18 +79,96 @@ enable_uart=1
 
 Note: see also https://github.com/sparkfun/Qwiic_CCS811_Py but there is a pull request open for this
 
+## web (PHP PWA)
+
+```bash
+cd web && composer install
+```
+
+### development
+
+Run the PHP app locally with the built-in server:
+
+```bash
+cd /path/to/fermmon
+php -S localhost:8080 -t web/public web/public/router.php
+```
+
+Then open http://localhost:8080. The router forwards requests to `index.php` for clean URLs.
 
 # services
-```
- sudo cp *.service /etc/systemd/system/
- systemctl enable fermmon.service http.service 
+
+```bash
+sudo cp fermmon.service /etc/systemd/system/
+sudo systemctl enable fermmon.service   # start on boot
+sudo systemctl start fermmon.service    # start now
 ```
 
-# cron
+The old `http.service` (Python HTTP server) is replaced by Apache/nginx. Use `apache-fermmon.conf` or `nginx-fermmon.conf` as a template for your web server config. Point DocumentRoot to `web/public/`.
+
+# operations
+
+| Action | Command |
+|--------|---------|
+| Start | `sudo systemctl start fermmon.service` |
+| Stop | `sudo systemctl stop fermmon.service` |
+| Restart | `sudo systemctl restart fermmon.service` |
+| Status | `sudo systemctl status fermmon.service` |
+| View logs | `journalctl -u fermmon -f` |
+
+# creating a new brew
+
+When you begin a new fermentation, set the current version so new readings are tagged correctly:
+
+```bash
+cd /home/ubuntu/fermmon
+python scripts/set-current-version.py 15 "My New Brew Name" https://optional-url
 ```
-# m h  dom mon dow   command
-*/5 * * * * cd /home/ubuntu/fermmon && /usr/bin/Rscript fermmon.r >/dev/null
+
+Accepts version as `15` or `v15`. The version is added to the DB and marked current. No restart needed.
+
+# migration (one-time, when switching from CSV)
+
+Imports `fermmon.csv`, `fermmon_v4.csv`, `fermmon_v5.csv`, etc., and `version.csv` into SQLite. Version IDs stored without "v" prefix (14 not v14).
+```bash
+cd /home/ubuntu/fermmon && php data/migrate-csv.php
 ```
+Then restart fermmon.service. CSV files can be removed after verifying.
+
+The R script (`fermmon.r`) is no longer needed; charts are now rendered client-side with Chart.js.
+
+# charts
+
+The web dashboard shows two Chart.js time-series:
+
+1. **CO2 and tVOC over Time** – Primary fermentation indicators. When CO2 drops toward the "normal air" reference (1000 ppm for a small indoor room), fermentation is likely done.
+2. **Temperature and Humidity over Time** – Internal/external temp, humidity, and heat belt status.
+
+The X-axis shows **Day 0, Day 1, Day 2...** from the first reading of the selected brew, with the start date in the axis title. A "Hide outliers" toggle excludes sensor spikes (CO2/tVOC > 6000) so the chart scales to the baseline.
+
+## Chart colours
+
+Colours follow common IAQ and environmental conventions:
+
+| Metric | Colour | Rationale |
+|--------|--------|-----------|
+| CO2 | Teal (#0d9488) | Common for air/gas in IAQ displays |
+| tVOC | Amber (#d97706) | Organic/VOC, complementary to CO2 |
+| Int. temp | Red (#dc2626) | Thermometer convention (warm) |
+| Ext. temp | Orange (#ea580c) | Distinct from internal |
+| Humidity | Cyan (#0891b2) | Water convention |
+| Heat belt | Emerald (#059669) | Active/on |
+
+Dashed reference lines show "normal air" (1000 ppm CO2, 200 ppb tVOC) for comparison.
+
+# outliers
+
+CO2/tVOC sensors can spike to 16k+ ppm/ppb while fermentation typically runs 1–3k. Options:
+
+1. **Display filter** (default): "Hide outliers" toggle excludes readings > 6000. Chart scales to baseline.
+2. **API**: `?max_co2=6000&max_tvoc=6000` on `/api/readings`.
+3. **SQLite**: `php scripts/mark-outliers.php` adds `is_outlier` column for analysis.
+4. **Data collection**: `fermmon.py` uses CCS811 datasheet range by default (CO2 ≤ 8192 ppm, tVOC ≤ 1187 ppb). Set `MAX_CO2 = 99999` to allow all, or e.g. `6000` for a stricter cap.
 
 # testing
 * readTemp.py to check if the 1-wire temperature probe is working
@@ -66,9 +177,6 @@ Note: see also https://github.com/sparkfun/Qwiic_CCS811_Py but there is a pull r
 ** journalctl -u cron -f 
 * creck for debugging messages
 ** journalctl -u fermmon -f
-
-![Co2 and tVOC text](fermmon_co2.png)
-![Int/Ext Temp and Humidity](fermmon_temp.png)
 
 # references
 

@@ -172,6 +172,13 @@ _AVAILABLE_I2C_ADDRESS = [0x5B, 0x5A]
 
 _validChipIDs = [0x81]
 
+# Datasheet-specified valid ranges (CCS811 DS000459)
+# Values outside these are extrapolations or sensor glitches
+CCS811_ECO2_MIN = 400   # ppm
+CCS811_ECO2_MAX = 8192  # ppm
+CCS811_TVOC_MIN = 0     # ppb
+CCS811_TVOC_MAX = 1187  # ppb
+
 # Register addresses
 CSS811_STATUS = 0x00
 CSS811_MEAS_MODE = 0x01
@@ -626,6 +633,20 @@ class QwiicCcs811(object):
         self._temperature = self._temperature - 273.15  # Convert Kelvin to Celsius
 
         return self.SENSOR_SUCCESS
+
+    #----------------------------------------------------
+    # Check if current reading is within datasheet valid range
+    def is_reading_valid(self):
+        """
+            Returns True if CO2 and tVOC are within the CCS811 datasheet valid range.
+            eCO2: 400-8192 ppm, tVOC: 0-1187 ppb.
+            Values outside are often sensor glitches or I2C errors.
+
+            :return: True if within valid range
+            :rtype: bool
+        """
+        return (CCS811_ECO2_MIN <= self._CO2 <= CCS811_ECO2_MAX and
+                CCS811_TVOC_MIN <= self._TVOC <= CCS811_TVOC_MAX)
 
     #----------------------------------------------------
     # TVOC Value

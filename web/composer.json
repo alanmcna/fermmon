@@ -1,0 +1,15 @@
+{
+    "name": "fermmon/web",
+    "description": "Fermmon Brew Monitor - PHP PWA",
+    "require": {
+        "php": ">=7.4",
+        "slim/slim": "^4.12",
+        "slim/psr7": "^1.6",
+        "slim/php-view": "^3.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Fermmon\\Web\\": "src/"
+        }
+    }
+}

@@ -3,3 +3,5 @@
 *.backup
 __pycache__
 hydrometer/micropython/ports/rp2/modules/config.py
+data/fermmon.db
+web/vendor/

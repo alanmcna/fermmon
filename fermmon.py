@@ -2,46 +2,96 @@ import qwiic_ccs811
 import time, datetime
 import glob, os
 import sys
+import sqlite3
 from rowi import Rowi
 
 TARGET_TEMP = 19.5
 LOW_TEMP_WARNING = 10
 
-# Write to CSV - much faster than journalctrl
-def writeResults(str):
-    filename = 'fermmon.csv'
+# Outlier caps: readings above these are often sensor glitches.
+# None = use CCS811 datasheet range (CO2 400-8192 ppm, tVOC 0-1187 ppb)
+# Or set e.g. 6000 to use a stricter fermentation-typical cap
+MAX_CO2 = None   # use qwiic_ccs811.CCS811_ECO2_MAX when None
+MAX_TVOC = None  # use qwiic_ccs811.CCS811_TVOC_MAX when None
 
-    # Append-adds at last
-    fptr = open(filename, 'a')  # append mode
-    print("info: writing results - %s" % (str))
-    fptr.write("%s\n" % (str))
-    fptr.close()
+# SQLite DB path (relative to script directory)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_PATH = os.path.join(BASE_DIR, 'data', 'fermmon.db')
 
-# Write latest line for HTTP server
-def writeLatest(str):
-    global brew
-    filename = 'latest.csv'
 
-    str = "%s,%s" % (str, brew)
+def get_db():
+    """Get SQLite connection, creating schema if needed."""
+    os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+    conn = sqlite3.connect(DB_PATH)
+    conn.executescript(open(os.path.join(BASE_DIR, 'data', 'schema.sql')).read())
+    return conn
 
-    # Append-adds at last
-    fptr = open(filename, 'w')  # write/clobber mode - we just want one line
-    print("info: writing latest - %s" % (str))
-    fptr.write("%s\n" % (str))
-    fptr.close()
 
-# What brew 'version' are we - keep logs
-def getVersion():
+def _version_id(v):
+    """Normalize version to numeric ID (14 not v14)."""
+    s = str(v).strip()
+    return s.lstrip('vV') if s.lower().startswith('v') else s
 
-    # Read the file and iterate on it - just the first line
-    with open('version.csv', 'r') as f:
-        for line in f:
-            stripped_line = line.strip()
-            version, brew = stripped_line.split(',')
-            break # just the first line
 
-    print("info: version:%s, brew:%s" % (version, brew))
-    return version, brew
+def migrate_version_csv(conn):
+    """Import version.csv into versions table if versions is empty."""
+    cur = conn.execute("SELECT COUNT(*) FROM versions")
+    if cur.fetchone()[0] > 0:
+        return  # already populated
+    version_csv = os.path.join(BASE_DIR, 'version.csv')
+    if not os.path.exists(version_csv):
+        return
+    with open(version_csv, 'r') as f:
+        lines = [l.strip() for l in f if l.strip()]
+    for i, line in enumerate(lines):
+        parts = line.split(',', 2)
+        if len(parts) >= 2:
+            version, brew = _version_id(parts[0]), parts[1].strip()
+            url = parts[2].strip() if len(parts) > 2 else ''
+            conn.execute(
+                "INSERT OR IGNORE INTO versions (version, brew, url, is_current) VALUES (?, ?, ?, 0)",
+                (version, brew, url)
+            )
+    if lines:
+        first_version = _version_id(lines[0].split(',', 1)[0])
+        conn.execute("UPDATE versions SET is_current = 0")
+        conn.execute("UPDATE versions SET is_current = 1 WHERE version = ?", (first_version,))
+    conn.commit()
+    print("info: migrated version.csv into SQLite")
+
+
+def get_version(conn):
+    """Get current version and brew from SQLite (or migrate from version.csv)."""
+    migrate_version_csv(conn)
+    cur = conn.execute("SELECT version, brew FROM versions WHERE is_current = 1 LIMIT 1")
+    row = cur.fetchone()
+    if row:
+        version, brew = row
+        print("info: version:%s, brew:%s" % (version, brew))
+        return version, brew
+    raise RuntimeError("No current version set. Create data/fermmon.db and add a row to versions with is_current=1, or ensure version.csv exists.")
+
+
+def get_config(conn):
+    """Get config dict from DB. Creates table if missing."""
+    try:
+        cur = conn.execute("SELECT key, value FROM config")
+        return {r[0]: r[1] for r in cur.fetchall()}
+    except sqlite3.OperationalError:
+        conn.executescript(open(os.path.join(BASE_DIR, 'data', 'schema.sql')).read())
+        return {'recording': '1', 'sample_interval': '10', 'write_interval': '300'}
+
+
+def write_reading(conn, date_time, co2, tvoc, temp, version, rtemp, rhumi, relay):
+    """Insert a reading into SQLite."""
+    conn.execute(
+        """INSERT OR IGNORE INTO readings (date_time, co2, tvoc, temp, version, rtemp, rhumi, relay)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+        (date_time, co2, tvoc, temp, version, rtemp, rhumi, relay)
+    )
+    conn.commit()
+    print("info: writing result - %s" % date_time)
+
 
 # function to read ds18b20 probe
 def ds18B20(SensorID):
@@ -59,6 +109,7 @@ def ds18B20(SensorID):
     txt_temp = line.split(" ")[9]
     return (float(txt_temp[2:])/1000.0)
 
+
 ccs811Sensor = qwiic_ccs811.QwiicCcs811()
 
 if ccs811Sensor.is_connected() == False:
@@ -71,22 +122,28 @@ tempSensor = ''
 
 for ts in glob.glob("/sys/bus/w1/devices/28-*"):
     tempSensor = ts.split('/')[5]
-    break # just grab the first one
+    break  # just grab the first one
 
-delta = 5
-duration = 20
-incr = 0
+# Defaults; overridden by config table (sample_interval, write_interval).
+# recording=0 in config stops writing to DB.
+SAMPLE_INTERVAL = 10
+WRITE_INTERVAL = 300
 
-co2 = tvoc = 0
+co2 = tvoc = incr = 0
 
 r = Rowi()
 
-version, brew = getVersion()
+conn = get_db()
+version, brew = get_version(conn)
 
 while True:
+    cfg = get_config(conn)
+    recording = cfg.get('recording', '1') == '1'
+    sample_interval = int(cfg.get('sample_interval', str(SAMPLE_INTERVAL)))
+    write_interval = int(cfg.get('write_interval', str(WRITE_INTERVAL)))
     # get (external) temp and humidity from the rowi and set the ccs811 env data
     rtemp, rhumi = r.getTemperature()
-    ccs811Sensor.set_environmental_data(rhumi,rtemp)
+    ccs811Sensor.set_environmental_data(rhumi, rtemp)
 
     if ccs811Sensor.data_available():
         ccs811Sensor.read_algorithm_results()
@@ -95,18 +152,19 @@ while True:
         tvoc += ccs811Sensor.get_tvoc()
         print("debug: co2:%.02f, tvoc:%.02f, incr:%d" % (co2, tvoc, incr));
 
-        incr+=delta
+        incr += sample_interval
     else:
-        print("debug: ccs811 data unavailable (incr:%d, delta:%d)" % (incr, delta));
+        print("debug: ccs811 data unavailable (incr:%d)" % incr);
 
-    if incr >= duration:
-        co2=co2/(incr/delta)
-        tvoc=tvoc/(incr/delta)
+    if incr >= write_interval:
+        n = incr / sample_interval
+        co2 = co2 / n
+        tvoc = tvoc / n
 
-        temp = ds18B20(tempSensor) # internal temperature
+        temp = ds18B20(tempSensor)  # internal temperature
         if temp is None:
-            temp = 0 # just hack it
-            
+            temp = 0  # just hack it
+
         if temp > 12 and temp < TARGET_TEMP and r.getRelayStatus() == "0":
             r.setRelayStatus(True)
             print("debug: turning on rowi - too cold")
@@ -117,15 +175,32 @@ while True:
             r.setRelayStatus(False)
             print("debug: turning off rowi - bogus temp reading")
 
-        relay = r.getRelayStatus() 
+        relay = r.getRelayStatus()
 
-        results = "%s,%.3f,%.3f,%.3f,%s,%.3f,%.3f,%s" % (datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), 
-			co2, tvoc, temp, version, rtemp, rhumi, relay)
-        writeResults(results)
-        writeLatest(results)
+        if not recording:
+            print("debug: recording paused - skipping write")
+            incr = co2 = tvoc = 0
+            time.sleep(sample_interval)
+            continue
 
-	# reset vars
+        # Refresh version from DB (picks up new versions added via Control page)
+        version, brew = get_version(conn)
+
+        # Skip outlier readings (sensor glitches)
+        # Use MAX_CO2/MAX_TVOC if set, else datasheet range (CCS811: 400-8192 ppm, 0-1187 ppb)
+        max_co2 = MAX_CO2 if MAX_CO2 is not None else qwiic_ccs811.CCS811_ECO2_MAX
+        max_tvoc = MAX_TVOC if MAX_TVOC is not None else qwiic_ccs811.CCS811_TVOC_MAX
+        if co2 > max_co2 or tvoc > max_tvoc:
+            print("debug: skipping outlier co2=%.0f tvoc=%.0f (max %d/%d)" % (co2, tvoc, max_co2, max_tvoc))
+            incr = co2 = tvoc = 0
+            time.sleep(sample_interval)
+            continue
+
+        date_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        write_reading(conn, date_time, co2, tvoc, temp, _version_id(version), rtemp, rhumi, relay)
+
+        # reset vars
         incr = co2 = tvoc = 0
 
-    print("debug: about to sleep for %ds (incr:%d, duration:%d)" % (delta, incr, duration));
-    time.sleep(delta)
+    print("debug: sleep %ds (incr:%d, write at %d)" % (sample_interval, incr, write_interval));
+    time.sleep(sample_interval)

@@ -1,5 +1,5 @@
 [Unit]
-Description=http.server
+Description=Legacy Python HTTP server (deprecated - use Apache/nginx instead)
 After=multi-user.target
 
 [Service]
