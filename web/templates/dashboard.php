@@ -51,6 +51,7 @@
         </div>
     </div>
     <?php endif; ?>
+    <div id="cachedBanner" class="alert alert-secondary py-2 small mb-2" style="display:none" role="status"></div>
     <div class="row"><div class="col"><hr/></div></div>
 
     <div class="row">
@@ -102,11 +103,28 @@
     const baseUrl = window.location.origin;
     let chartCO2, chartTemp;
 
+    function showCachedBanner(cachedDate) {
+        const el = document.getElementById('cachedBanner');
+        if (!el) return;
+        const when = cachedDate ? new Date(cachedDate).toLocaleString() : 'previously';
+        el.textContent = 'Offline – showing cached data (last updated ' + when + ')';
+        el.style.display = 'block';
+    }
+    function hideCachedBanner() {
+        const el = document.getElementById('cachedBanner');
+        if (el) el.style.display = 'none';
+    }
+
     async function fetchLatest(version) {
         let url = baseUrl + '/api/latest?t=' + Date.now();
         if (version) url += '&version=' + encodeURIComponent(version);
         const r = await fetch(url);
         if (!r.ok) return;
+        if (r.headers.get('X-Served-From-Cache')) {
+            showCachedBanner(r.headers.get('X-Cached-Date'));
+        } else {
+            hideCachedBanner();
+        }
         const d = await r.json();
         document.getElementById('dateTime').textContent = d.date_time ? new Date(d.date_time + ' UTC').toLocaleString() : '—';
         document.getElementById('intTemp').textContent = d.temp != null ? d.temp.toFixed(1) + ' °C' : '—';
@@ -117,15 +135,19 @@
         document.getElementById('tVOC').textContent = d.tvoc != null ? Math.round(d.tvoc) + ' ppb' : '—';
     }
 
-    async function fetchReadings(version) {
+    async function fetchReadings(version, since) {
         let url = baseUrl + '/api/readings?limit=0';
         if (version) url += '&version=' + encodeURIComponent(version);
+        if (since) url += '&since=' + encodeURIComponent(since);
         const hide = document.getElementById('hideOutliers');
         if (hide && hide.checked) {
             url += '&max_co2=6000&max_tvoc=6000';
         }
         const r = await fetch(url);
         if (!r.ok) return [];
+        if (r.headers.get('X-Served-From-Cache')) {
+            showCachedBanner(r.headers.get('X-Cached-Date'));
+        }
         return r.json();
     }
 
@@ -230,17 +252,32 @@
         });
     }
 
+    let cachedReadings = [];
+    const CHART_UPDATE_INTERVAL = 5 * 60 * 1000;  // 5 min (matches fermmon write interval)
+
     async function refreshView() {
         const overlay = document.getElementById('loadingOverlay');
         if (overlay) overlay.classList.remove('hidden');
         try {
             const sel = document.getElementById('versionFilter');
             const version = sel ? sel.value : null;
-            const readings = await fetchReadings(version);
-            if (readings.length) initCharts(readings);
+            cachedReadings = await fetchReadings(version);
+            if (cachedReadings.length) initCharts(cachedReadings);
             await fetchLatest(version);
         } finally {
             if (overlay) overlay.classList.add('hidden');
+        }
+    }
+
+    async function incrementalChartUpdate() {
+        const sel = document.getElementById('versionFilter');
+        const version = sel ? sel.value : null;
+        if (!cachedReadings.length || !chartCO2) return;
+        const lastDt = cachedReadings[cachedReadings.length - 1].date_time;
+        const newReadings = await fetchReadings(version, lastDt);
+        if (newReadings.length) {
+            cachedReadings = cachedReadings.concat(newReadings);
+            initCharts(cachedReadings);
         }
     }
 
@@ -254,6 +291,7 @@
         const sel = document.getElementById('versionFilter');
         if (sel) fetchLatest(sel.value);
     }, 30000);
+    setInterval(incrementalChartUpdate, CHART_UPDATE_INTERVAL);
 })();
 </script>
 </body>

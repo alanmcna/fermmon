@@ -61,7 +61,8 @@ class DataService
         ?string $version = null,
         ?int $limit = 5000,
         ?int $maxCo2 = null,
-        ?int $maxTvoc = null
+        ?int $maxTvoc = null,
+        ?string $since = null
     ): array {
         if (!$this->db) return [];
 
@@ -81,6 +82,10 @@ class DataService
         if ($version) {
             $sql .= ' AND version = ?';
             $params[] = $version;
+        }
+        if ($since !== null) {
+            $sql .= ' AND date_time > ?';
+            $params[] = $since;
         }
 
         $sql .= ' ORDER BY date_time DESC';

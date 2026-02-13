@@ -48,7 +48,8 @@ $app->get('/api/readings', function (Request $request, Response $response) use (
     $limit = isset($params['limit']) ? (int)$params['limit'] : 0;
     $maxCo2 = isset($params['max_co2']) ? (int)$params['max_co2'] : null;
     $maxTvoc = isset($params['max_tvoc']) ? (int)$params['max_tvoc'] : null;
-    $readings = $dataService->getReadings($version, $limit, $maxCo2, $maxTvoc);
+    $since = $params['since'] ?? null;
+    $readings = $dataService->getReadings($version, $limit, $maxCo2, $maxTvoc, $since);
     $response->getBody()->write(json_encode($readings));
     return $response->withHeader('Content-Type', 'application/json');
 });
