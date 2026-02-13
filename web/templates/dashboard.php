@@ -77,13 +77,15 @@
             if (isset($latest['temp'])) {
                 $t = (float)$latest['temp'];
                 $target = (float)(($config ?? [])['target_temp'] ?? 19.5);
+                $th = (float)(($config ?? [])['temp_warning_threshold'] ?? 3);
                 $d = $t - $target;
-                if ($d >= 3) $tempColor = '#dc2626';
-                elseif ($d >= 2) $tempColor = '#f97316';
-                elseif ($d >= 1) $tempColor = '#eab308';
-                elseif ($d >= -1) $tempColor = '#22c55e';
-                elseif ($d >= -2) $tempColor = '#38bdf8';
-                elseif ($d >= -3) $tempColor = '#1d4ed8';
+                $t1 = $th / 3; $t2 = $th * 2 / 3; $t3 = $th;
+                if ($d >= $t3) $tempColor = '#dc2626';
+                elseif ($d >= $t2) $tempColor = '#f97316';
+                elseif ($d >= $t1) $tempColor = '#eab308';
+                elseif ($d >= -$t1) $tempColor = '#22c55e';
+                elseif ($d >= -$t2) $tempColor = '#38bdf8';
+                elseif ($d >= -$t3) $tempColor = '#1d4ed8';
                 else $tempColor = '#1e293b';
             }
             ?>
@@ -141,12 +143,13 @@
     function tempColor(temp) {
         if (temp == null) return '#94a3b8';
         const d = temp - targetTemp;
-        if (d >= 3) return '#dc2626';      // red
-        if (d >= 2) return '#f97316';     // orange
-        if (d >= 1) return '#eab308';      // yellow
-        if (d >= -1) return '#22c55e';     // green (just right)
-        if (d >= -2) return '#38bdf8';    // light blue
-        if (d >= -3) return '#1d4ed8';     // dark blue
+        const t1 = tempWarningThreshold / 3, t2 = tempWarningThreshold * 2 / 3, t3 = tempWarningThreshold;
+        if (d >= t3) return '#dc2626';      // red
+        if (d >= t2) return '#f97316';     // orange
+        if (d >= t1) return '#eab308';      // yellow
+        if (d >= -t1) return '#22c55e';     // green (just right)
+        if (d >= -t2) return '#38bdf8';    // light blue
+        if (d >= -t3) return '#1d4ed8';     // dark blue
         return '#1e293b';                   // black/dark
     }
 
