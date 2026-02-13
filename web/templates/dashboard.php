@@ -19,10 +19,19 @@
         .chart-container { position: relative; height: 280px; margin-bottom: 2rem; }
         .chart-container canvas { max-height: 280px; }
         @media (min-width: 768px) { .chart-container { height: 360px; } .chart-container canvas { max-height: 360px; } }
-        #loadingOverlay { position: fixed; inset: 0; background: rgba(255,255,255,0.9); display: flex; align-items: center; justify-content: center; z-index: 9999; }
-        #loadingOverlay.hidden { display: none !important; }
-        #loadingOverlay img { width: 80px; height: 80px; animation: pulse 1.2s ease-in-out infinite; }
-        @keyframes pulse { 0%, 100% { opacity: 0.7; } 50% { opacity: 1; } }
+        .chart-loading { position: absolute; inset: 0; background: rgba(255,255,255,0.85); display: flex; align-items: center; justify-content: center; z-index: 10; }
+        .chart-loading.hidden { display: none !important; }
+        .chart-loading-anim { width: 64px; height: 80px; }
+        .chart-loading-anim svg { width: 100%; height: 100%; }
+        .ferm-liquid { transform-origin: bottom; animation: ferm-fill 2s steps(10) infinite; }
+        .ferm-bubble { animation: ferm-bubble 1.5s ease-in-out infinite; }
+        .ferm-bubble:nth-child(1) { animation-delay: 0s; }
+        .ferm-bubble:nth-child(2) { animation-delay: 0.2s; }
+        .ferm-bubble:nth-child(3) { animation-delay: 0.4s; }
+        .ferm-bubble:nth-child(4) { animation-delay: 0.6s; }
+        .ferm-bubble:nth-child(5) { animation-delay: 0.8s; }
+        @keyframes ferm-fill { 0% { transform: scaleY(0); } 100% { transform: scaleY(1); } }
+        @keyframes ferm-bubble { 0%, 100% { opacity: 0.3; transform: translateY(0) scale(1); } 50% { opacity: 0.9; transform: translateY(-2px) scale(1.2); } }
         .chart-tooltip { position: fixed; padding: 8px 12px; background: rgba(0,0,0,0.85); color: #fff; border-radius: 6px; font-size: 12px; pointer-events: auto; z-index: 100; max-width: 280px; box-shadow: 0 2px 8px rgba(0,0,0,0.3); display: none; }
         .chart-tooltip .tt-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
         .chart-tooltip .tt-close { background: transparent; border: none; color: #fff; cursor: pointer; padding: 4px 8px; font-size: 18px; line-height: 1; opacity: 0.8; min-width: 36px; min-height: 36px; -webkit-tap-highlight-color: transparent; }
@@ -30,7 +39,6 @@
     </style>
 </head>
 <body>
-<div id="loadingOverlay"><img src="/fermmon-logo.png" alt="Loading"></div>
 <?php include __DIR__ . '/_nav.php'; ?>
 
 <div class="container my-4">
@@ -44,14 +52,6 @@
                 </option>
                 <?php endforeach; ?>
             </select>
-        </div>
-    </div>
-    <div class="row mb-2">
-        <div class="col">
-            <div class="form-check form-switch">
-                <input class="form-check-input" type="checkbox" id="hideOutliers" checked>
-                <label class="form-check-label" for="hideOutliers">Hide outliers (CO2/tVOC &gt; 6000)</label>
-            </div>
         </div>
     </div>
     <?php endif; ?>
@@ -122,10 +122,54 @@
     </div>
     <div class="row"><div class="col"><hr/></div></div>
 
+    <div class="row mb-2 align-items-center">
+        <div class="col-auto">
+            <label class="form-label mb-0 me-2">Chart range:</label>
+        </div>
+        <div class="col-auto">
+            <select class="form-select form-select-sm" id="chartRange" style="width: auto">
+                <option value="12h">Last 12 hours</option>
+                <option value="3d">Last 3 days</option>
+                <option value="all" selected>All</option>
+            </select>
+        </div>
+    </div>
     <div class="chart-container position-relative">
+        <div class="chart-loading" id="chartCO2Loading">
+            <div class="chart-loading-anim" aria-hidden="true">
+                <svg viewBox="0 0 64 80" xmlns="http://www.w3.org/2000/svg">
+                    <defs><clipPath id="ferm-vessel-co2"><path d="M18 8 L18 72 Q18 80 32 80 Q46 80 46 72 L46 8 Q46 0 32 0 Q18 0 18 8 Z"/></clipPath></defs>
+                    <path d="M18 8 L18 72 Q18 80 32 80 Q46 80 46 72 L46 8 Q46 0 32 0 Q18 0 18 8 Z" fill="none" stroke="#0d6efd" stroke-width="2"/>
+                    <g clip-path="url(#ferm-vessel-co2)">
+                        <rect x="20" y="20" width="24" height="60" fill="#0d6efd" opacity="0.6" class="ferm-liquid"/>
+                        <circle cx="26" cy="28" r="2" fill="#fff" opacity="0.5" class="ferm-bubble"/>
+                        <circle cx="32" cy="26" r="1.5" fill="#fff" opacity="0.5" class="ferm-bubble"/>
+                        <circle cx="38" cy="30" r="1" fill="#fff" opacity="0.5" class="ferm-bubble"/>
+                        <circle cx="28" cy="32" r="1.2" fill="#fff" opacity="0.5" class="ferm-bubble"/>
+                        <circle cx="36" cy="27" r="0.8" fill="#fff" opacity="0.5" class="ferm-bubble"/>
+                    </g>
+                </svg>
+            </div>
+        </div>
         <canvas id="chartCO2"></canvas>
     </div>
     <div class="chart-container position-relative">
+        <div class="chart-loading" id="chartTempLoading">
+            <div class="chart-loading-anim" aria-hidden="true">
+                <svg viewBox="0 0 64 80" xmlns="http://www.w3.org/2000/svg">
+                    <defs><clipPath id="ferm-vessel-temp"><path d="M18 8 L18 72 Q18 80 32 80 Q46 80 46 72 L46 8 Q46 0 32 0 Q18 0 18 8 Z"/></clipPath></defs>
+                    <path d="M18 8 L18 72 Q18 80 32 80 Q46 80 46 72 L46 8 Q46 0 32 0 Q18 0 18 8 Z" fill="none" stroke="#0d6efd" stroke-width="2"/>
+                    <g clip-path="url(#ferm-vessel-temp)">
+                        <rect x="20" y="20" width="24" height="60" fill="#0d6efd" opacity="0.6" class="ferm-liquid"/>
+                        <circle cx="26" cy="28" r="2" fill="#fff" opacity="0.5" class="ferm-bubble"/>
+                        <circle cx="32" cy="26" r="1.5" fill="#fff" opacity="0.5" class="ferm-bubble"/>
+                        <circle cx="38" cy="30" r="1" fill="#fff" opacity="0.5" class="ferm-bubble"/>
+                        <circle cx="28" cy="32" r="1.2" fill="#fff" opacity="0.5" class="ferm-bubble"/>
+                        <circle cx="36" cy="27" r="0.8" fill="#fff" opacity="0.5" class="ferm-bubble"/>
+                    </g>
+                </svg>
+            </div>
+        </div>
         <canvas id="chartTemp"></canvas>
     </div>
     <div id="chartTooltip" class="chart-tooltip" role="tooltip"></div>
@@ -136,7 +180,7 @@
     const baseUrl = window.location.origin;
     let chartCO2, chartTemp;
     let summaryRefreshMs = 30000, chartUpdateMs = 300000;
-    let targetTemp = 19.5, tempWarningThreshold = 3;
+    let targetTemp = 19.5, tempWarningThreshold = 3, hideOutliers = true;
     let lastTempWarningNotify = 0;
     const TEMP_NOTIFY_COOLDOWN = 5 * 60 * 1000;  // 5 min between notifications
 
@@ -198,14 +242,20 @@
         document.getElementById('tVOC').textContent = d.tvoc != null ? Math.round(d.tvoc) + ' ppb' : '—';
     }
 
-    async function fetchReadings(version, since) {
+    function getChartHours() {
+        const sel = document.getElementById('chartRange');
+        if (!sel) return null;
+        if (sel.value === '12h') return 12;
+        if (sel.value === '3d') return 72;
+        return null;
+    }
+
+    async function fetchReadings(version, since, hours) {
         let url = baseUrl + '/api/readings?limit=0';
         if (version) url += '&version=' + encodeURIComponent(version);
         if (since) url += '&since=' + encodeURIComponent(since);
-        const hide = document.getElementById('hideOutliers');
-        if (hide && hide.checked) {
-            url += '&max_co2=6000&max_tvoc=6000';
-        }
+        if (hours) url += '&hours=' + hours;
+        if (hideOutliers) url += '&max_co2=6000&max_tvoc=6000';
         const r = await fetch(url);
         if (!r.ok) return [];
         if (r.headers.get('X-Served-From-Cache')) {
@@ -228,10 +278,16 @@
         const maxCo2 = co2.length ? Math.max(...co2.map(p => p.y)) : 0;
         const maxTvoc = tvoc.length ? Math.max(...tvoc.map(p => p.y)) : 0;
         const maxDay = readings.length ? day(readings[readings.length - 1].date_time) : 0;
+        const hoursRange = getChartHours();
 
         const startLabel = readings.length ? new Date(readings[0].date_time.replace(' ', 'T') + 'Z').toLocaleDateString() : '';
 
-        const xTick = (v) => v === 0 ? 'Start' : (v % 1 === 0 ? 'Day ' + v : '');
+        const xTick = (v) => {
+            if (v === 0) return 'Start';
+            if (hoursRange === 12) return (v * 24).toFixed(0) + 'h';
+            if (hoursRange === 72) return (v % 1 === 0 ? 'Day ' + v : '');
+            return v % 1 === 0 ? 'Day ' + v : '';
+        };
 
         let tooltipAutoCloseTimer = null;
         function hideTooltip() {
@@ -362,9 +418,15 @@
     let cachedReadings = [];
     let summaryIntervalId, chartIntervalId;
 
+    function showChartLoading(show) {
+        ['chartCO2Loading', 'chartTempLoading'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.classList.toggle('hidden', !show);
+        });
+    }
+
     async function refreshView() {
-        const overlay = document.getElementById('loadingOverlay');
-        if (overlay) overlay.classList.remove('hidden');
+        showChartLoading(true);
         try {
             const cfgRes = await fetch(baseUrl + '/api/config');
             const cfg = await cfgRes.json();
@@ -372,21 +434,25 @@
             chartUpdateMs = parseInt(cfg.chart_update_interval || 300, 10) * 1000;
             targetTemp = parseFloat(cfg.target_temp || 19.5);
             tempWarningThreshold = parseFloat(cfg.temp_warning_threshold || 3);
+            hideOutliers = (cfg.hide_outliers || '1') === '1';
             if (window.updateNavTimers) window.updateNavTimers(cfg);
             if (summaryIntervalId) clearInterval(summaryIntervalId);
             if (chartIntervalId) clearInterval(chartIntervalId);
             const sel = document.getElementById('versionFilter');
             const version = sel ? sel.value : null;
-            cachedReadings = await fetchReadings(version);
-            if (cachedReadings.length) initCharts(cachedReadings);
+            const hours = getChartHours();
+            cachedReadings = await fetchReadings(version, null, hours);
+            initCharts(cachedReadings);
             await fetchLatest(version);
+            showChartLoading(false);
             summaryIntervalId = setInterval(() => {
                 const s = document.getElementById('versionFilter');
                 if (s) fetchLatest(s.value);
             }, summaryRefreshMs);
             chartIntervalId = setInterval(incrementalChartUpdate, chartUpdateMs);
-        } finally {
-            if (overlay) overlay.classList.add('hidden');
+        } catch (e) {
+            showChartLoading(false);
+            throw e;
         }
     }
 
@@ -395,17 +461,25 @@
         const version = sel ? sel.value : null;
         if (!cachedReadings.length || !chartCO2) return;
         const lastDt = cachedReadings[cachedReadings.length - 1].date_time;
-        const newReadings = await fetchReadings(version, lastDt);
+        const hours = getChartHours();
+        const newReadings = await fetchReadings(version, lastDt, hours);
         if (newReadings.length) {
-            cachedReadings = cachedReadings.concat(newReadings);
+            let merged = cachedReadings.concat(newReadings);
+            if (hours) {
+                const parseDt = (dt) => new Date(dt.replace(' ', 'T') + 'Z').getTime();
+                const newest = parseDt(merged[merged.length - 1].date_time);
+                const cutoff = newest - hours * 60 * 60 * 1000;
+                merged = merged.filter(r => parseDt(r.date_time) >= cutoff);
+            }
+            cachedReadings = merged;
             initCharts(cachedReadings);
         }
     }
 
     const versionFilter = document.getElementById('versionFilter');
     if (versionFilter) versionFilter.addEventListener('change', refreshView);
-    const hideOutliers = document.getElementById('hideOutliers');
-    if (hideOutliers) hideOutliers.addEventListener('change', refreshView);
+    const chartRange = document.getElementById('chartRange');
+    if (chartRange) chartRange.addEventListener('change', refreshView);
 
     const notificationPrompt = document.getElementById('notificationPrompt');
     const btnEnableAlerts = document.getElementById('btnEnableAlerts');

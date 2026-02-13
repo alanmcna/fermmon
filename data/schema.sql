@@ -38,3 +38,4 @@ INSERT OR IGNORE INTO config (key, value) VALUES ('summary_refresh_interval', '3
 INSERT OR IGNORE INTO config (key, value) VALUES ('chart_update_interval', '300');
 INSERT OR IGNORE INTO config (key, value) VALUES ('target_temp', '19.5');
 INSERT OR IGNORE INTO config (key, value) VALUES ('temp_warning_threshold', '3');
+INSERT OR IGNORE INTO config (key, value) VALUES ('hide_outliers', '1');

@@ -55,6 +55,7 @@ class DataService
     /**
      * Get readings for charts.
      * Optional outlier filter: max_co2, max_tvoc cap to exclude sensor spikes.
+     * Optional date filter: from (YYYY-MM-DD HH:MM:SS) - only readings on or after this time.
      * Typical fermentation: 1–3k ppm CO2, 500–2k ppb tVOC. Spikes to 16k+ are often sensor glitches.
      */
     public function getReadings(
@@ -62,7 +63,8 @@ class DataService
         ?int $limit = 5000,
         ?int $maxCo2 = null,
         ?int $maxTvoc = null,
-        ?string $since = null
+        ?string $since = null,
+        ?string $from = null
     ): array {
         if (!$this->db) return [];
 
@@ -86,6 +88,10 @@ class DataService
         if ($since !== null) {
             $sql .= ' AND date_time > ?';
             $params[] = $since;
+        }
+        if ($from !== null) {
+            $sql .= ' AND date_time >= ?';
+            $params[] = $from;
         }
 
         $sql .= ' ORDER BY date_time DESC';
@@ -122,7 +128,7 @@ class DataService
     {
         if (!$this->db) return ['recording' => '1', 'sample_interval' => '10', 'write_interval' => '300',
             'summary_refresh_interval' => '30', 'chart_update_interval' => '300',
-            'target_temp' => '19.5', 'temp_warning_threshold' => '3'];
+            'target_temp' => '19.5', 'temp_warning_threshold' => '3', 'hide_outliers' => '1'];
 
         $stmt = $this->db->query('SELECT key, value FROM config');
         $config = [];
@@ -131,7 +137,7 @@ class DataService
         }
         $defaults = ['recording' => '1', 'sample_interval' => '10', 'write_interval' => '300',
             'summary_refresh_interval' => '30', 'chart_update_interval' => '300',
-            'target_temp' => '19.5', 'temp_warning_threshold' => '3'];
+            'target_temp' => '19.5', 'temp_warning_threshold' => '3', 'hide_outliers' => '1'];
         return array_merge($defaults, $config);
     }
 

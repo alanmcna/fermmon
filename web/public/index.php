@@ -41,7 +41,9 @@ $app->get('/api/latest', function (Request $request, Response $response) use ($d
     return $response->withHeader('Content-Type', 'application/json');
 });
 
-// API: readings for charts (?version= &limit= &max_co2= &max_tvoc= to filter outliers)
+// API: readings for charts (?version= &limit= &max_co2= &max_tvoc= &since= &from= &hours=)
+// from= datetime (YYYY-MM-DD HH:MM:SS) - date-based filter, readings >= from
+// hours= e.g. 12 or 72 - alternative: from = now - hours (server time)
 $app->get('/api/readings', function (Request $request, Response $response) use ($dataService) {
     $params = $request->getQueryParams();
     $version = $params['version'] ?? null;
@@ -49,7 +51,14 @@ $app->get('/api/readings', function (Request $request, Response $response) use (
     $maxCo2 = isset($params['max_co2']) ? (int)$params['max_co2'] : null;
     $maxTvoc = isset($params['max_tvoc']) ? (int)$params['max_tvoc'] : null;
     $since = $params['since'] ?? null;
-    $readings = $dataService->getReadings($version, $limit, $maxCo2, $maxTvoc, $since);
+    $from = $params['from'] ?? null;
+    if ($from === null && isset($params['hours'])) {
+        $hours = (int)$params['hours'];
+        if ($hours > 0) {
+            $from = date('Y-m-d H:i:s', time() - $hours * 3600);
+        }
+    }
+    $readings = $dataService->getReadings($version, $limit, $maxCo2, $maxTvoc, $since, $from);
     $response->getBody()->write(json_encode($readings));
     return $response->withHeader('Content-Type', 'application/json');
 });
@@ -69,7 +78,7 @@ $app->get('/api/config', function (Request $request, Response $response) use ($d
 });
 $app->post('/api/config', function (Request $request, Response $response) use ($dataService) {
     $body = $request->getParsedBody();
-    foreach (['recording', 'sample_interval', 'write_interval', 'summary_refresh_interval', 'chart_update_interval', 'target_temp', 'temp_warning_threshold'] as $key) {
+    foreach (['recording', 'sample_interval', 'write_interval', 'summary_refresh_interval', 'chart_update_interval', 'target_temp', 'temp_warning_threshold', 'hide_outliers'] as $key) {
         if (isset($body[$key])) {
             $dataService->setConfig($key, (string)$body[$key]);
         }

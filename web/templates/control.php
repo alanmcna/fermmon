@@ -85,6 +85,12 @@
                 <div class="col-md-4 d-flex align-items-end">
                     <button type="button" class="btn btn-outline-secondary" id="btnSaveRefresh">Save</button>
                 </div>
+                <div class="col-12">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="hideOutliers" <?= (($config['hide_outliers'] ?? '1') === '1') ? 'checked' : '' ?>>
+                        <label class="form-check-label" for="hideOutliers">Hide outliers (CO2/tVOC &gt; 6000)</label>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -175,12 +181,13 @@
     document.getElementById('btnSaveRefresh').addEventListener('click', async () => {
         const sri = document.getElementById('summaryRefreshInterval').value;
         const cui = document.getElementById('chartUpdateInterval').value;
+        const ho = document.getElementById('hideOutliers').checked ? '1' : '0';
         await fetch(base + '/api/config', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ summary_refresh_interval: sri, chart_update_interval: cui })
+            body: JSON.stringify({ summary_refresh_interval: sri, chart_update_interval: cui, hide_outliers: ho })
         });
-        alert('Saved. Dashboard will use new intervals on next load.');
+        alert('Saved. Dashboard will use new settings on next load.');
     });
 
     document.getElementById('btnSaveTiming').addEventListener('click', async () => {
