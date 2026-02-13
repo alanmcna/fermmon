@@ -23,6 +23,10 @@
         #loadingOverlay.hidden { display: none !important; }
         #loadingOverlay img { width: 80px; height: 80px; animation: pulse 1.2s ease-in-out infinite; }
         @keyframes pulse { 0%, 100% { opacity: 0.7; } 50% { opacity: 1; } }
+        .chart-tooltip { position: fixed; padding: 8px 12px; background: rgba(0,0,0,0.85); color: #fff; border-radius: 6px; font-size: 12px; pointer-events: auto; z-index: 100; max-width: 280px; box-shadow: 0 2px 8px rgba(0,0,0,0.3); display: none; }
+        .chart-tooltip .tt-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+        .chart-tooltip .tt-close { background: transparent; border: none; color: #fff; cursor: pointer; padding: 4px 8px; font-size: 18px; line-height: 1; opacity: 0.8; min-width: 36px; min-height: 36px; -webkit-tap-highlight-color: transparent; }
+        .chart-tooltip .tt-close:hover { opacity: 1; }
     </style>
 </head>
 <body>
@@ -118,11 +122,11 @@
 
     <div class="chart-container position-relative">
         <canvas id="chartCO2"></canvas>
-        <div id="chartTooltip" class="chart-tooltip" role="tooltip"></div>
     </div>
     <div class="chart-container position-relative">
         <canvas id="chartTemp"></canvas>
     </div>
+    <div id="chartTooltip" class="chart-tooltip" role="tooltip"></div>
 </div>
 
 <script>
@@ -226,6 +230,47 @@
 
         const xTick = (v) => v === 0 ? 'Start' : (v % 1 === 0 ? 'Day ' + v : '');
 
+        let tooltipAutoCloseTimer = null;
+        function hideTooltip() {
+            const el = document.getElementById('chartTooltip');
+            if (el) el.style.display = 'none';
+            if (tooltipAutoCloseTimer) { clearTimeout(tooltipAutoCloseTimer); tooltipAutoCloseTimer = null; }
+        }
+        function externalTooltip(context) {
+            const { chart, tooltip } = context;
+            const el = document.getElementById('chartTooltip');
+            if (!el) return;
+            if (tooltip.opacity === 0) {
+                hideTooltip();
+                return;
+            }
+            if (tooltipAutoCloseTimer) { clearTimeout(tooltipAutoCloseTimer); tooltipAutoCloseTimer = null; }
+            const title = tooltip.title?.length ? tooltip.title[0] : '';
+            let bodyHtml = '';
+            (tooltip.body || []).forEach((b, i) => {
+                const c = tooltip.labelColors?.[i];
+                const color = c?.backgroundColor || '#fff';
+                (b.lines || []).forEach(line => {
+                    bodyHtml += '<div style="display:flex;align-items:center;gap:6px;margin:2px 0"><span style="width:10px;height:10px;border-radius:2px;background:' + color + ';flex-shrink:0"></span>' + line + '</div>';
+                });
+            });
+            el.innerHTML = '<div class="tt-header"><span>' + title + '</span><button type="button" class="tt-close" aria-label="Close">×</button></div><div>' + bodyHtml + '</div>';
+            el.style.display = 'block';
+            const rect = chart.canvas.getBoundingClientRect();
+            const scaleX = rect.width / chart.width;
+            const scaleY = rect.height / chart.height;
+            const x = rect.left + (tooltip.caretX || tooltip.x) * scaleX;
+            const y = rect.top + (tooltip.caretY || tooltip.y) * scaleY;
+            el.style.left = Math.max(12, Math.min(x, window.innerWidth - 12)) + 'px';
+            el.style.top = (y - 12) + 'px';
+            el.style.transform = 'translate(-50%, -100%)';
+            const closeBtn = el.querySelector('.tt-close');
+            if (closeBtn) {
+                closeBtn.onclick = (e) => { e.stopPropagation(); hideTooltip(); };
+            }
+            tooltipAutoCloseTimer = setTimeout(hideTooltip, 30000);
+        }
+
         const NORMAL_CO2 = 1000;
         const NORMAL_TVOC = 200;
         const co2Ref = co2.map(p => ({ x: p.x, y: NORMAL_CO2 }));
@@ -240,6 +285,7 @@
             relay: '#f5c842'     // sunshine yellow - heat belt
         };
 
+        hideTooltip();
         if (chartCO2) chartCO2.destroy();
         chartCO2 = new Chart(document.getElementById('chartCO2'), {
             type: 'line',
@@ -263,13 +309,14 @@
                     y1: { type: 'linear', position: 'right', min: 0, suggestedMax: Math.max(4000, maxTvoc * 1.1), grid: { drawOnChartArea: false }, title: { display: true, text: 'tVOC (ppb)' } }
                 },
                 plugins: { title: { display: true, text: 'CO2 and tVOC over Time' },
-                    tooltip: { callbacks: { title: (items) => {
-                        const d = items[0]?.raw?.x;
-                        const label = d === 0 ? 'Start' : 'Day ' + d.toFixed(1);
-                        const idx = items[0]?.dataIndex;
-                        const dt = readings[idx]?.date_time;
-                        return dt ? label + ' (' + dt + ')' : label;
-                    } } } }
+                    tooltip: { enabled: false, external: externalTooltip,
+                        callbacks: { title: (items) => {
+                            const d = items[0]?.raw?.x;
+                            const label = d === 0 ? 'Start' : 'Day ' + d.toFixed(1);
+                            const idx = items[0]?.dataIndex;
+                            const dt = readings[idx]?.date_time;
+                            return dt ? label + ' (' + dt + ')' : label;
+                        } } } }
             }
         });
 
@@ -297,13 +344,14 @@
                     y2: { type: 'linear', position: 'right', min: 0, max: 1, grid: { drawOnChartArea: false }, ticks: { stepSize: 1 } }
                 },
                 plugins: { title: { display: true, text: 'Temperature and Humidity over Time' },
-                    tooltip: { callbacks: { title: (items) => {
-                        const d = items[0]?.raw?.x;
-                        const label = d === 0 ? 'Start' : 'Day ' + d.toFixed(1);
-                        const idx = items[0]?.dataIndex;
-                        const dt = readings[idx]?.date_time;
-                        return dt ? label + ' (' + dt + ')' : label;
-                    } } } }
+                    tooltip: { enabled: false, external: externalTooltip,
+                        callbacks: { title: (items) => {
+                            const d = items[0]?.raw?.x;
+                            const label = d === 0 ? 'Start' : 'Day ' + d.toFixed(1);
+                            const idx = items[0]?.dataIndex;
+                            const dt = readings[idx]?.date_time;
+                            return dt ? label + ' (' + dt + ')' : label;
+                        } } } }
             }
         });
     }
