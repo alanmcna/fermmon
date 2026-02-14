@@ -38,6 +38,8 @@ fermmon starts in Mode 1 and does not change mode at runtime, so no idle transit
 
 **Burn-in**: 48-hour initial burn-in recommended for new sensors; 20 min warm-up when resuming use.
 
+**Environment**: The CCS811 is sensitive to humidity and temperature. In warm, moist spaces (e.g. laundry room with washer/dryer running), readings can spike or become unreliable. Good ventilation helps: run an extractor fan and/or a secondary fan to reduce humidity and heat buildup. If readings go haywire, moving the sensor to fresh air for 20–30 minutes to reset the baseline often helps.
+
 # hardware
 
 * pi-zero 2w
@@ -207,7 +209,7 @@ CO2/tVOC sensors can spike to 16k+ ppm/ppb while fermentation typically runs 1�
 1. **Display filter** (default): "Hide outliers" toggle excludes readings > 6000. Chart scales to baseline.
 2. **API**: `?max_co2=6000&max_tvoc=6000` on `/api/readings`.
 3. **SQLite**: `php scripts/mark-outliers.php` adds `is_outlier` column for analysis.
-4. **Data collection**: `fermmon.py` uses CCS811 datasheet range by default (CO2 ≤ 8192 ppm, tVOC ≤ 1187 ppb). Set `MAX_CO2 = 99999` to allow all, or e.g. `6000` for a stricter cap.
+4. **Data collection**: `fermmon.py` records all readings; the web "Hide outliers" toggle filters display.
 
 # testing
 * readTemp.py to check if the 1-wire temperature probe is working

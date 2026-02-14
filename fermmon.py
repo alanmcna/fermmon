@@ -8,12 +8,6 @@ from rowi import Rowi
 TARGET_TEMP = 19.5
 LOW_TEMP_WARNING = 10
 
-# Outlier caps: readings above these are often sensor glitches.
-# None = use CCS811 datasheet range (CO2 400-8192 ppm, tVOC 0-1187 ppb)
-# Or set e.g. 6000 to use a stricter fermentation-typical cap
-MAX_CO2 = None   # use qwiic_ccs811.CCS811_ECO2_MAX when None
-MAX_TVOC = None  # use qwiic_ccs811.CCS811_TVOC_MAX when None
-
 # SQLite DB path (relative to script directory)
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(BASE_DIR, 'data', 'fermmon.db')
@@ -185,16 +179,6 @@ while True:
 
         # Refresh version from DB (picks up new versions added via Control page)
         version, brew = get_version(conn)
-
-        # Skip outlier readings (sensor glitches)
-        # Use MAX_CO2/MAX_TVOC if set, else datasheet range (CCS811: 400-8192 ppm, 0-1187 ppb)
-        max_co2 = MAX_CO2 if MAX_CO2 is not None else qwiic_ccs811.CCS811_ECO2_MAX
-        max_tvoc = MAX_TVOC if MAX_TVOC is not None else qwiic_ccs811.CCS811_TVOC_MAX
-        if co2 > max_co2 or tvoc > max_tvoc:
-            print("debug: skipping outlier co2=%.0f tvoc=%.0f (max %d/%d)" % (co2, tvoc, max_co2, max_tvoc))
-            incr = co2 = tvoc = 0
-            time.sleep(sample_interval)
-            continue
 
         date_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         write_reading(conn, date_time, co2, tvoc, temp, _version_id(version), rtemp, rhumi, relay)
