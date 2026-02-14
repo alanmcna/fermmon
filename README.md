@@ -303,6 +303,15 @@ CO2/tVOC sensors can spike to 16k+ ppm/ppb while fermentation typically runs 1â€
 * creck for debugging messages
 ** journalctl -u fermmon -f
 
+# documentation
+
+| Doc | Description |
+|-----|-------------|
+| [docs/debugging.md](docs/debugging.md) | Debugging tips and log inspection |
+| [docs/device-registration-plan.md](docs/device-registration-plan.md) | Device registration, Control auth, multi-fermenter |
+| [docs/multi-fermenter-plan.md](docs/multi-fermenter-plan.md) | Multi-fermenter architecture |
+| [docs/upgrade-plan.md](docs/upgrade-plan.md) | CSV â†’ SQLite upgrade and deployment |
+
 # references
 
 * https://www.sparkfun.com/sparkfun-environmental-combo-breakout-ens160-bme280-qwiic.html
