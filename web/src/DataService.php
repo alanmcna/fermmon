@@ -153,6 +153,36 @@ class DataService
     }
 
     /**
+     * Insert a reading. For single-fermenter mode, version defaults to current.
+     */
+    public function addReading(
+        string $dateTime,
+        float $co2,
+        float $tvoc,
+        float $temp,
+        ?string $version = null,
+        ?float $rtemp = null,
+        ?float $rhumi = null,
+        ?int $relay = null
+    ): bool {
+        if (!$this->db) return false;
+
+        if ($version === null) {
+            $row = $this->db->query('SELECT version FROM versions WHERE is_current = 1 LIMIT 1')->fetch(\PDO::FETCH_ASSOC);
+            $version = $row['version'] ?? '';
+        }
+        $version = preg_replace('/^v/i', '', trim($version));
+        $rtemp = $rtemp ?? 0;
+        $rhumi = $rhumi ?? 0;
+        $relay = $relay ?? 0;
+
+        $stmt = $this->db->prepare(
+            'INSERT OR IGNORE INTO readings (date_time, co2, tvoc, temp, version, rtemp, rhumi, relay) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+        );
+        return $stmt->execute([$dateTime, $co2, $tvoc, $temp, $version, $rtemp, $rhumi, $relay]);
+    }
+
+    /**
      * Add new version and set as current.
      */
     public function addVersion(string $version, string $brew, string $url = ''): bool

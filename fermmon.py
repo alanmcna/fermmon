@@ -3,10 +3,17 @@ import time, datetime
 import glob, os
 import sys
 import sqlite3
+import json
+import ssl
+import urllib.request
+import urllib.error
 from rowi import Rowi
 
 TARGET_TEMP = 19.5
 LOW_TEMP_WARNING = 10
+
+# API URL for remote push (e.g. https://localhost:443). If set, readings are POSTed here instead of local SQLite.
+API_URL = os.environ.get('API_URL', 'https://localhost:443')
 
 # SQLite DB path (relative to script directory)
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -85,6 +92,38 @@ def write_reading(conn, date_time, co2, tvoc, temp, version, rtemp, rhumi, relay
     )
     conn.commit()
     print("info: writing result - %s" % date_time)
+
+
+def post_reading_to_api(date_time, co2, tvoc, temp, version, rtemp, rhumi, relay):
+    """POST a reading to the web API. Returns True on success."""
+    if not API_URL or not API_URL.strip():
+        return False
+    url = API_URL.rstrip('/') + '/api/readings'
+    payload = json.dumps({
+        'date_time': date_time,
+        'co2': co2,
+        'tvoc': tvoc,
+        'temp': temp,
+        'version': version,
+        'rtemp': rtemp,
+        'rhumi': rhumi,
+        'relay': relay,
+    }).encode('utf-8')
+    req = urllib.request.Request(url, data=payload, method='POST',
+                                  headers={'Content-Type': 'application/json'})
+    try:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE  # allow self-signed certs for localhost
+        with urllib.request.urlopen(req, timeout=10, context=ctx) as resp:
+            if 200 <= resp.getcode() < 300:
+                print("info: posted to API - %s" % date_time)
+                return True
+    except urllib.error.HTTPError as e:
+        print("warn: API HTTP %d - %s" % (e.code, e.read().decode()[:200]), file=sys.stderr)
+    except Exception as e:
+        print("warn: API error - %s" % e, file=sys.stderr)
+    return False
 
 
 # function to read ds18b20 probe
@@ -179,11 +218,18 @@ while True:
 
         # Refresh version from DB (picks up new versions added via Control page)
         version, brew = get_version(conn)
+        version_id = _version_id(version)
 
         # Record all readings; web "Hide outliers" filters display. If filtering is ever
         # re-added here, it must be logged (e.g. print("warn: skipping outlier ...")).
         date_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        write_reading(conn, date_time, co2, tvoc, temp, _version_id(version), rtemp, rhumi, relay)
+
+        if API_URL and API_URL.strip():
+            ok = post_reading_to_api(date_time, co2, tvoc, temp, version_id, rtemp, rhumi, relay)
+            if not ok:
+                write_reading(conn, date_time, co2, tvoc, temp, version_id, rtemp, rhumi, relay)
+        else:
+            write_reading(conn, date_time, co2, tvoc, temp, version_id, rtemp, rhumi, relay)
 
         # reset vars
         incr = co2 = tvoc = 0

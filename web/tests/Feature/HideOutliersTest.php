@@ -80,6 +80,55 @@ test('readings: with max_co2 and max_tvoc filters outliers', function () {
     }
 });
 
+test('readings: POST stores a reading (single fermenter)', function () {
+    // Ensure we have a current version
+    $versionBody = (new StreamFactory())->createStream(json_encode(['version' => '14', 'brew' => 'Test Brew']));
+    $this->app->handle(
+        $this->requestFactory->createServerRequest('POST', '/api/versions')
+            ->withBody($versionBody)
+            ->withHeader('Content-Type', 'application/json')
+    );
+
+    $body = (new StreamFactory())->createStream(json_encode([
+        'date_time' => '2025-02-14 12:00:00',
+        'co2' => 1200,
+        'tvoc' => 450,
+        'temp' => 19.2,
+        'rtemp' => 18.5,
+        'rhumi' => 65,
+        'relay' => 0,
+    ]));
+    $request = $this->requestFactory->createServerRequest('POST', '/api/readings')
+        ->withBody($body)
+        ->withHeader('Content-Type', 'application/json');
+
+    $response = $this->app->handle($request);
+    expect($response->getStatusCode())->toBe(201);
+    $json = json_decode((string) $response->getBody(), true);
+    expect($json)->toHaveKey('ok');
+    expect($json['ok'])->toBeTrue();
+
+    // Verify via GET
+    $getRequest = $this->requestFactory->createServerRequest('GET', '/api/readings?limit=1');
+    $getResponse = $this->app->handle($getRequest);
+    $readings = json_decode((string) $getResponse->getBody(), true);
+    expect($readings)->toBeArray();
+    expect($readings)->not->toBeEmpty();
+    expect($readings[0])->toMatchArray(['co2' => 1200.0, 'tvoc' => 450.0, 'temp' => 19.2, 'version' => '14']);
+});
+
+test('readings: POST requires co2, tvoc, temp', function () {
+    $body = (new StreamFactory())->createStream(json_encode(['co2' => 100]));  // missing tvoc, temp
+    $request = $this->requestFactory->createServerRequest('POST', '/api/readings')
+        ->withBody($body)
+        ->withHeader('Content-Type', 'application/json');
+
+    $response = $this->app->handle($request);
+    expect($response->getStatusCode())->toBe(400);
+    $json = json_decode((string) $response->getBody(), true);
+    expect($json)->toHaveKey('error');
+});
+
 test('control page: toggle hide_outliers and save persists to API', function () {
     // Set initial state
     $body = (new StreamFactory())->createStream(json_encode(['hide_outliers' => '1']));

@@ -16,6 +16,8 @@ The CCS811 sensor (Mode 1) produces new eCO2/tVOC readings every 1 second. fermm
 | Write interval | 5 min | DB write and temp/relay logic |
 | Samples per write | ~30 | Rolling average for noise reduction |
 
+**API push**: Set `API_URL` (default `https://localhost:443`) to have fermmon POST readings to the web API instead of local SQLite. On API failure, it falls back to local DB. Set `API_URL=` (empty) to use local SQLite only.
+
 ## CCS811 operating modes
 
 | Mode | Interval | Use |
@@ -174,6 +176,23 @@ The **Control** page (`/control`) lets you manage recording and versions from th
 | Timing | Adjust sample and write intervals (advanced). |
 
 fermmon reads the `config` table each cycle, so changes take effect without restart.
+
+## API: POST reading
+
+`POST /api/readings` accepts a JSON body for a single reading (single-fermenter mode):
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| co2 | ✓ | CO2 (ppm) |
+| tvoc | ✓ | tVOC (ppb) |
+| temp | ✓ | Internal temp (°C) |
+| date_time | | Defaults to now |
+| version | | Defaults to current version |
+| rtemp, rhumi, relay | | Optional |
+
+Example: `{"co2": 1200, "tvoc": 450, "temp": 19.2}`
+
+*Planned*: Security (device ID + token), multi-fermenter support, and securing Control when the app is online.
 
 # services
 

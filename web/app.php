@@ -42,6 +42,24 @@ $app->get('/api/latest', function (Request $request, Response $response) use ($d
 });
 
 // API: readings
+$app->post('/api/readings', function (Request $request, Response $response) use ($dataService) {
+    $body = $request->getParsedBody() ?? [];
+    $dateTime = $body['date_time'] ?? date('Y-m-d H:i:s');
+    $co2 = isset($body['co2']) ? (float)$body['co2'] : null;
+    $tvoc = isset($body['tvoc']) ? (float)$body['tvoc'] : null;
+    $temp = isset($body['temp']) ? (float)$body['temp'] : null;
+    if ($co2 === null || $tvoc === null || $temp === null) {
+        $response->getBody()->write(json_encode(['error' => 'co2, tvoc and temp required']));
+        return $response->withHeader('Content-Type', 'application/json')->withStatus(400);
+    }
+    $version = $body['version'] ?? null;
+    $rtemp = isset($body['rtemp']) ? (float)$body['rtemp'] : null;
+    $rhumi = isset($body['rhumi']) ? (float)$body['rhumi'] : null;
+    $relay = isset($body['relay']) ? (int)$body['relay'] : null;
+    $ok = $dataService->addReading($dateTime, $co2, $tvoc, $temp, $version, $rtemp, $rhumi, $relay);
+    $response->getBody()->write(json_encode($ok ? ['ok' => true] : ['error' => 'Failed to store']));
+    return $response->withHeader('Content-Type', 'application/json')->withStatus($ok ? 201 : 500);
+});
 $app->get('/api/readings', function (Request $request, Response $response) use ($dataService) {
     $params = $request->getQueryParams();
     $version = $params['version'] ?? null;
