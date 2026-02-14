@@ -30,11 +30,22 @@ $app->get('/sw.js', function (Request $request, Response $response) {
 });
 
 // API: latest reading
-$app->get('/api/latest', function (Request $request, Response $response) use ($dataService) {
-    $version = $request->getQueryParams()['version'] ?? null;
+$app->get('/api/latest', function (Request $request, Response $response) use ($dataService, $baseDir) {
+    $params = $request->getQueryParams();
+    $version = $params['version'] ?? null;
     $latest = $dataService->getLatest($version);
     if (!$latest) {
-        $response->getBody()->write(json_encode(['error' => 'No data']));
+        $dbPath = $baseDir . '/data/fermmon.db';
+        $body = [
+            'error' => 'No data',
+            '_debug' => [
+                'baseDir' => $baseDir,
+                'versionParam' => $version,
+                'dbExists' => file_exists($dbPath),
+                'dbReadable' => file_exists($dbPath) && is_readable($dbPath),
+            ],
+        ];
+        $response->getBody()->write(json_encode($body, JSON_PRETTY_PRINT));
         return $response->withHeader('Content-Type', 'application/json')->withStatus(404);
     }
     $response->getBody()->write(json_encode($latest));
