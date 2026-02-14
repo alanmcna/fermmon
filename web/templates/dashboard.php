@@ -256,10 +256,9 @@
         const startLabel = readings.length ? new Date(readings[0].date_time.replace(' ', 'T') + 'Z').toLocaleDateString() : '';
 
         const xTick = (v) => {
-            if (v === 0) return 'Start';
-            if (hoursRange === 24) return (v * 24).toFixed(0) + 'h';
-            if (hoursRange === 120) return (v % 1 === 0 ? 'Day ' + v : '');
-            return v % 1 === 0 ? 'Day ' + v : '';
+            if (hoursRange === 24) return ((v - maxDay) * 24).toFixed(0) + 'h';  // -24h to 0 (last 24h)
+            if (hoursRange === 120) return (v % 1 === 0 ? (v - maxDay).toString() : '');  // -5 to 0 (last 5d)
+            return v % 1 === 0 ? 'Day ' + v : '';  // 0 to X (all)
         };
 
         let tooltipAutoCloseTimer = null;
@@ -344,7 +343,10 @@
                     tooltip: { enabled: false, external: externalTooltip,
                         callbacks: { title: (items) => {
                             const d = items[0]?.raw?.x;
-                            const label = d === 0 ? 'Start' : 'Day ' + d.toFixed(1);
+                            let label;
+                            if (hoursRange === 24) label = ((d - maxDay) * 24).toFixed(0) + 'h';
+                            else if (hoursRange === 120) label = (d - maxDay).toFixed(1);
+                            else label = 'Day ' + d.toFixed(1);
                             const idx = items[0]?.dataIndex;
                             const dt = readings[idx]?.date_time;
                             return dt ? label + ' (' + dt + ')' : label;
@@ -379,7 +381,10 @@
                     tooltip: { enabled: false, external: externalTooltip,
                         callbacks: { title: (items) => {
                             const d = items[0]?.raw?.x;
-                            const label = d === 0 ? 'Start' : 'Day ' + d.toFixed(1);
+                            let label;
+                            if (hoursRange === 24) label = ((d - maxDay) * 24).toFixed(0) + 'h';
+                            else if (hoursRange === 120) label = (d - maxDay).toFixed(1);
+                            else label = 'Day ' + d.toFixed(1);
                             const idx = items[0]?.dataIndex;
                             const dt = readings[idx]?.date_time;
                             return dt ? label + ' (' + dt + ')' : label;
