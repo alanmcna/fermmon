@@ -1,5 +1,9 @@
 # Debugging fermmon
 
+## Design note: never drop data silently
+
+If data is ever filtered or dropped at collection time (e.g. in fermmon.py), it must be logged clearly. Silently not recording data is a significant failure mode—users may not notice for days. Prefer recording everything and filtering at display time (web "Hide outliers" toggle).
+
 ## Hide outliers not persisting
 
 If the "Hide outliers" setting on the Control page doesn't stay enabled (or doesn't take effect), check the following.

@@ -180,6 +180,8 @@ while True:
         # Refresh version from DB (picks up new versions added via Control page)
         version, brew = get_version(conn)
 
+        # Record all readings; web "Hide outliers" filters display. If filtering is ever
+        # re-added here, it must be logged (e.g. print("warn: skipping outlier ...")).
         date_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         write_reading(conn, date_time, co2, tvoc, temp, _version_id(version), rtemp, rhumi, relay)
 
