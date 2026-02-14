@@ -135,6 +135,49 @@
         document.getElementById('btnToggle').className = 'btn ' + (recording ? 'btn-warning' : 'btn-success');
     }
 
+    // Dirty-state: highlight Save buttons when form values differ from initial
+    const saveGroups = [
+        { btn: 'btnSaveTemp', inputs: ['targetTemp', 'tempWarningThreshold'], getValues: () => [
+            document.getElementById('targetTemp').value,
+            document.getElementById('tempWarningThreshold').value
+        ]},
+        { btn: 'btnSaveRefresh', inputs: ['summaryRefreshInterval', 'chartUpdateInterval', 'hideOutliers'], getValues: () => [
+            document.getElementById('summaryRefreshInterval').value,
+            document.getElementById('chartUpdateInterval').value,
+            document.getElementById('hideOutliers').checked ? '1' : '0'
+        ]},
+        { btn: 'btnSaveTiming', inputs: ['sampleInterval', 'writeInterval'], getValues: () => [
+            document.getElementById('sampleInterval').value,
+            document.getElementById('writeInterval').value
+        ]}
+    ];
+
+    const initialValues = saveGroups.map(g => g.getValues());
+
+    function setSaveButtonDirty(btnId, dirty) {
+        const btn = document.getElementById(btnId);
+        btn.classList.toggle('btn-primary', dirty);
+        btn.classList.toggle('btn-outline-secondary', !dirty);
+    }
+
+    function checkDirty() {
+        saveGroups.forEach((g, i) => {
+            const current = g.getValues();
+            const changed = current.some((v, j) => v !== initialValues[i][j]);
+            setSaveButtonDirty(g.btn, changed);
+        });
+    }
+
+    saveGroups.forEach(g => {
+        g.inputs.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+                el.addEventListener('input', checkDirty);
+                el.addEventListener('change', checkDirty);
+            }
+        });
+    });
+
     document.getElementById('btnToggle').addEventListener('click', async () => {
         const cfg = await getConfig();
         const next = cfg.recording === '1' ? '0' : '1';
@@ -175,6 +218,8 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ target_temp: tt, temp_warning_threshold: tw })
         });
+        initialValues[0] = [tt, tw];
+        checkDirty();
         alert('Saved. Note: fermmon.py uses its own TARGET_TEMP (19.5) for the heat belt.');
     });
 
@@ -187,6 +232,8 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ summary_refresh_interval: sri, chart_update_interval: cui, hide_outliers: ho })
         });
+        initialValues[1] = [sri, cui, ho];
+        checkDirty();
         alert('Saved. Dashboard will use new settings on next load.');
     });
 
@@ -198,6 +245,8 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ sample_interval: si, write_interval: wi })
         });
+        initialValues[2] = [si, wi];
+        checkDirty();
         alert('Saved. fermmon will use new values on next cycle.');
     });
 

@@ -98,6 +98,63 @@ php -S localhost:8080 -t web/public web/public/router.php
 
 Then open http://localhost:8080. The router forwards requests to `index.php` for clean URLs.
 
+### HTTPS (for notifications and PWA)
+
+Browser notifications and PWA features (service worker, install prompt) require a secure context (HTTPS or localhost). On a LAN, use a self-signed certificate:
+
+**1. Generate a self-signed cert** (valid 10 years):
+
+```bash
+sudo openssl req -x509 -nodes -days 3650 -newkey rsa:2048 \
+  -keyout /etc/ssl/private/fermmon.key \
+  -out /etc/ssl/certs/fermmon.crt \
+  -subj "/CN=fermmon.local" \
+  -addext "subjectAltName=DNS:fermmon.local,DNS:asteroids,IP:192.168.0.10"
+```
+
+Replace `192.168.0.10` with your Pi's IP. Add other hostnames to the `subjectAltName` list if needed.
+
+**2. Add an HTTPS VirtualHost** to your Apache config (e.g. in `apache-fermmon.conf` or a separate SSL config):
+
+```apache
+<VirtualHost *:443>
+    ServerName fermmon.local
+    DocumentRoot /home/ubuntu/fermmon/web/public
+    SSLEngine on
+    SSLCertificateFile /etc/ssl/certs/fermmon.crt
+    SSLCertificateKeyFile /etc/ssl/private/fermmon.key
+    <Directory /home/ubuntu/fermmon/web/public>
+        Options -Indexes +FollowSymLinks
+        AllowOverride All
+        Require all granted
+    </Directory>
+    ErrorLog ${APACHE_LOG_DIR}/fermmon-ssl-error.log
+    CustomLog ${APACHE_LOG_DIR}/fermmon-ssl-access.log combined
+</VirtualHost>
+```
+
+**3. Enable SSL** and restart:
+
+```bash
+sudo a2enmod ssl
+sudo systemctl restart apache2
+```
+
+**4. Access** via `https://fermmon.local` or `https://192.168.0.10`. Accept the browser's certificate warning once per device; after that, notifications and PWA work.
+
+**Alternative (no warnings):** Use [mkcert](https://github.com/FiloSottile/mkcert) to create locally-trusted certs. Install the mkcert CA on each device that will use the app.
+
+### UI tests (Pest)
+
+API and integration tests verify the config and hide-outliers flow.
+
+```bash
+cd web && composer install
+composer test
+```
+
+Tests use an isolated SQLite database (`data/test/`). They live in `web/tests/`.
+
 ## Control page
 
 The **Control** page (`/control`) lets you manage recording and versions from the browser:

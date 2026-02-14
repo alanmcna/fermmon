@@ -11,5 +11,11 @@
         "psr-4": {
             "Fermmon\\Web\\": "src/"
         }
+    },
+    "require-dev": {
+        "pestphp/pest": "^2.36"
+    },
+    "scripts": {
+        "test": "pest"
     }
 }

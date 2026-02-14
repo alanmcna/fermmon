@@ -4,4 +4,6 @@
 __pycache__
 hydrometer/micropython/ports/rp2/modules/config.py
 data/fermmon.db
+data/test/
+web/.phpunit.cache/
 web/vendor/

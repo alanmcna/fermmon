@@ -28,6 +28,8 @@
         .chart-tooltip .tt-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
         .chart-tooltip .tt-close { background: transparent; border: none; color: #fff; cursor: pointer; padding: 4px 8px; font-size: 18px; line-height: 1; opacity: 0.8; min-width: 36px; min-height: 36px; -webkit-tap-highlight-color: transparent; }
         .chart-tooltip .tt-close:hover { opacity: 1; }
+        .brew-link { color: #374151; text-decoration: none; }
+        .brew-link:hover { color: #111827; text-decoration: underline; }
     </style>
 </head>
 <body>
@@ -56,8 +58,7 @@
 
     <?php if (!empty($versions)): ?>
     <div class="row">
-        <div class="col"><b>Name:</b></div>
-        <div class="col text-end" id="brewInfo"></div>
+        <div class="col-12" id="brewInfo"></div>
     </div>
     <?php endif; ?>
     <div class="row">
@@ -400,7 +401,7 @@
     async function refreshView() {
         showChartLoading(true);
         try {
-            const cfgRes = await fetch(baseUrl + '/api/config');
+            const cfgRes = await fetch(baseUrl + '/api/config?t=' + Date.now(), { cache: 'no-store' });
             const cfg = await cfgRes.json();
             summaryRefreshMs = parseInt(cfg.summary_refresh_interval || 30, 10) * 1000;
             chartUpdateMs = parseInt(cfg.chart_update_interval || 300, 10) * 1000;
@@ -460,7 +461,7 @@
             return;
         }
         if (url) {
-            info.innerHTML = '<a href="' + escapeHtml(url) + '" target="_blank" rel="noopener">' + escapeHtml(brew) + '</a>';
+            info.innerHTML = '<a href="' + escapeHtml(url) + '" target="_blank" rel="noopener" class="brew-link">' + escapeHtml(brew) + '</a>';
         } else {
             info.textContent = brew;
         }
