@@ -109,10 +109,11 @@ sudo openssl req -x509 -nodes -days 3650 -newkey rsa:2048 \
   -keyout /etc/ssl/private/fermmon.key \
   -out /etc/ssl/certs/fermmon.crt \
   -subj "/CN=fermmon.local" \
+  -addext "basicConstraints=critical,CA:FALSE" \
   -addext "subjectAltName=DNS:fermmon.local,DNS:asteroids,IP:192.168.0.10"
 ```
 
-Replace `192.168.0.10` with your Pi's IP. Add other hostnames to the `subjectAltName` list if needed.
+Replace `192.168.0.10` with your Pi's IP. Add other hostnames to the `subjectAltName` list if needed. The `basicConstraints=CA:FALSE` avoids Apache's "CA certificate" warning.
 
 **2. Add HTTPS VirtualHosts** to your Apache config (e.g. in `apache-fermmon.conf` or a separate SSL config). Replace the existing `*:80` VirtualHost with a redirect, and add the HTTPS host:
 

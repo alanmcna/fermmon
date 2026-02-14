@@ -1,5 +1,5 @@
 // Service worker: cache static assets for offline. API caching is optional (see cacheApis param).
-const CACHE = 'fermmon-v4';
+const CACHE = 'fermmon-v5';
 
 function isApiRequest(url) {
   return new URL(url).pathname.startsWith('/api/');
