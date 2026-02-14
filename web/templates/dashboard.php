@@ -257,7 +257,7 @@
 
         const xTick = (v) => {
             if (hoursRange === 24) return ((v - maxDay) * 24).toFixed(0) + 'h';  // -24h to 0 (last 24h)
-            if (hoursRange === 120) return (v % 1 === 0 ? (v - maxDay).toString() : '');  // -5 to 0 (last 5d)
+            if (hoursRange === 120) return (v % 1 === 0 ? Math.round(v - maxDay).toString() : '');  // -5 to 0 (last 5d)
             return v % 1 === 0 ? 'Day ' + v : '';  // 0 to X (all)
         };
 
@@ -333,7 +333,7 @@
                 maintainAspectRatio: false,
                 interaction: { mode: 'index', intersect: false },
                 scales: {
-                    x: { type: 'linear', min: 0, max: Math.max(1, Math.ceil(maxDay)),
+                    x: { type: 'linear', min: 0, max: Math.max(0.1, maxDay),
                          ticks: { stepSize: 1, callback: (v) => xTick(v) },
                          title: { display: true, text: 'From ' + startLabel } },
                     y: { type: 'linear', position: 'left', min: 0, suggestedMax: Math.max(4000, maxCo2 * 1.1), title: { display: true, text: 'CO2 (ppm)' } },
@@ -345,7 +345,7 @@
                             const d = items[0]?.raw?.x;
                             let label;
                             if (hoursRange === 24) label = ((d - maxDay) * 24).toFixed(0) + 'h';
-                            else if (hoursRange === 120) label = (d - maxDay).toFixed(1);
+                            else if (hoursRange === 120) label = Math.round(d - maxDay);
                             else label = 'Day ' + d.toFixed(1);
                             const idx = items[0]?.dataIndex;
                             const dt = readings[idx]?.date_time;
@@ -370,7 +370,7 @@
                 maintainAspectRatio: false,
                 interaction: { mode: 'index', intersect: false },
                 scales: {
-                    x: { type: 'linear', min: 0, max: Math.max(1, Math.ceil(maxDay)),
+                    x: { type: 'linear', min: 0, max: Math.max(0.1, maxDay),
                          ticks: { stepSize: 1, callback: (v) => xTick(v) },
                          title: { display: true, text: 'From ' + startLabel } },
                     y: { type: 'linear', position: 'left', min: 0, max: 50, title: { display: true, text: '°C' } },
@@ -383,7 +383,7 @@
                             const d = items[0]?.raw?.x;
                             let label;
                             if (hoursRange === 24) label = ((d - maxDay) * 24).toFixed(0) + 'h';
-                            else if (hoursRange === 120) label = (d - maxDay).toFixed(1);
+                            else if (hoursRange === 120) label = Math.round(d - maxDay);
                             else label = 'Day ' + d.toFixed(1);
                             const idx = items[0]?.dataIndex;
                             const dt = readings[idx]?.date_time;
