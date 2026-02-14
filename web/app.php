@@ -76,7 +76,7 @@ $app->get('/api/config', function (Request $request, Response $response) use ($d
 });
 $app->post('/api/config', function (Request $request, Response $response) use ($dataService) {
     $body = $request->getParsedBody();
-    foreach (['recording', 'sample_interval', 'write_interval', 'summary_refresh_interval', 'chart_update_interval', 'target_temp', 'temp_warning_threshold', 'hide_outliers'] as $key) {
+    foreach (['recording', 'sample_interval', 'write_interval', 'summary_refresh_interval', 'chart_update_interval', 'target_temp', 'temp_warning_threshold', 'hide_outliers', 'cache_apis'] as $key) {
         if (isset($body[$key])) {
             $dataService->setConfig($key, (string)$body[$key]);
         }

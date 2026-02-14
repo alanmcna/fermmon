@@ -114,9 +114,16 @@ sudo openssl req -x509 -nodes -days 3650 -newkey rsa:2048 \
 
 Replace `192.168.0.10` with your Pi's IP. Add other hostnames to the `subjectAltName` list if needed.
 
-**2. Add an HTTPS VirtualHost** to your Apache config (e.g. in `apache-fermmon.conf` or a separate SSL config):
+**2. Add HTTPS VirtualHosts** to your Apache config (e.g. in `apache-fermmon.conf` or a separate SSL config). Replace the existing `*:80` VirtualHost with a redirect, and add the HTTPS host:
 
 ```apache
+# Redirect HTTP to HTTPS (preserves host: fermmon.local or IP)
+<VirtualHost *:80>
+    ServerName fermmon.local
+    RewriteEngine On
+    RewriteRule ^(.*)$ https://%{HTTP_HOST}$1 [R=301,L]
+</VirtualHost>
+
 <VirtualHost *:443>
     ServerName fermmon.local
     DocumentRoot /home/ubuntu/fermmon/web/public

@@ -111,6 +111,13 @@
                 <div class="col-md-4 d-flex align-items-end">
                     <button type="button" class="btn btn-outline-secondary" id="btnSaveTiming">Save</button>
                 </div>
+                <div class="col-12">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="cacheApis" <?= (($config['cache_apis'] ?? '0') === '1') ? 'checked' : '' ?>>
+                        <label class="form-check-label" for="cacheApis">Cache APIs for offline</label>
+                    </div>
+                    <p class="text-muted small mb-0 mt-1">Enable to cache API responses for offline use. Turn off if APIs fail with self-signed HTTPS.</p>
+                </div>
             </div>
         </div>
     </div>
@@ -146,9 +153,10 @@
             document.getElementById('chartUpdateInterval').value,
             document.getElementById('hideOutliers').checked ? '1' : '0'
         ]},
-        { btn: 'btnSaveTiming', inputs: ['sampleInterval', 'writeInterval'], getValues: () => [
+        { btn: 'btnSaveTiming', inputs: ['sampleInterval', 'writeInterval', 'cacheApis'], getValues: () => [
             document.getElementById('sampleInterval').value,
-            document.getElementById('writeInterval').value
+            document.getElementById('writeInterval').value,
+            document.getElementById('cacheApis').checked ? '1' : '0'
         ]}
     ];
 
@@ -240,14 +248,15 @@
     document.getElementById('btnSaveTiming').addEventListener('click', async () => {
         const si = document.getElementById('sampleInterval').value;
         const wi = document.getElementById('writeInterval').value;
+        const ca = document.getElementById('cacheApis').checked ? '1' : '0';
         await fetch(base + '/api/config', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ sample_interval: si, write_interval: wi })
+            body: JSON.stringify({ sample_interval: si, write_interval: wi, cache_apis: ca })
         });
-        initialValues[2] = [si, wi];
+        initialValues[2] = [si, wi, ca];
         checkDirty();
-        alert('Saved. fermmon will use new values on next cycle.');
+        alert('Saved. fermmon will use new values on next cycle. Reload the dashboard for cache setting to take effect.');
     });
 
     updateStatus();

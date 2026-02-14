@@ -1,14 +1,22 @@
-// Service worker: cache API responses for offline, network-first with cache fallback
-const CACHE = 'fermmon-v2';
+// Service worker: cache static assets for offline. API caching is optional (see cacheApis param).
+const CACHE = 'fermmon-v4';
 
 function isApiRequest(url) {
   return new URL(url).pathname.startsWith('/api/');
 }
 
+function shouldCacheApis() {
+  try {
+    return new URL(self.location.href).searchParams.get('cacheApis') === '1';
+  } catch (_) {
+    return false;
+  }
+}
+
 function cacheKey(request) {
   const url = new URL(request.url);
   if (isApiRequest(request.url)) {
-    url.searchParams.delete('t'); // strip cache-buster for consistent cache key
+    url.searchParams.delete('t');
   }
   return url.href;
 }
@@ -21,23 +29,6 @@ self.addEventListener('activate', (e) => {
   e.waitUntil(caches.keys().then(keys => Promise.all(
     keys.filter(k => k !== CACHE).map(k => caches.delete(k))
   )).then(() => self.clients.claim()));
-});
-
-self.addEventListener('fetch', (e) => {
-  if (!e.request.url.startsWith(self.location.origin)) return;
-
-  if (isApiRequest(e.request.url)) {
-    e.respondWith(handleApiFetch(e));
-    return;
-  }
-
-  // Static: network first, cache on success, fallback to cache when offline
-  e.respondWith(fetch(e.request).then(r => {
-    if (r.ok && r.type === 'basic') {
-      caches.open(CACHE).then(cache => cache.put(e.request, r.clone()));
-    }
-    return r;
-  }).catch(() => caches.match(e.request)));
 });
 
 async function handleApiFetch(e) {
@@ -57,9 +48,27 @@ async function handleApiFetch(e) {
     if (cached) {
       const headers = new Headers(cached.headers);
       headers.set('X-Served-From-Cache', '1');
-      const body = await cached.arrayBuffer();
-      return new Response(body, { headers, status: cached.status });
+      return new Response(await cached.arrayBuffer(), { headers, status: cached.status });
     }
     throw err;
   }
 }
+
+self.addEventListener('fetch', (e) => {
+  if (!e.request.url.startsWith(self.location.origin)) return;
+
+  if (isApiRequest(e.request.url)) {
+    if (shouldCacheApis()) {
+      e.respondWith(handleApiFetch(e));
+    }
+    return;
+  }
+
+  // Static: network first, cache on success, fallback to cache when offline
+  e.respondWith(fetch(e.request).then(r => {
+    if (r.ok && r.type === 'basic') {
+      caches.open(CACHE).then(cache => cache.put(e.request, r.clone()));
+    }
+    return r;
+  }).catch(() => caches.match(e.request)));
+});

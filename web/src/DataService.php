@@ -128,7 +128,7 @@ class DataService
     {
         if (!$this->db) return ['recording' => '1', 'sample_interval' => '10', 'write_interval' => '300',
             'summary_refresh_interval' => '30', 'chart_update_interval' => '300',
-            'target_temp' => '19.5', 'temp_warning_threshold' => '3', 'hide_outliers' => '1'];
+            'target_temp' => '19.5', 'temp_warning_threshold' => '3', 'hide_outliers' => '1', 'cache_apis' => '0'];
 
         $stmt = $this->db->query('SELECT key, value FROM config');
         $config = [];
@@ -137,7 +137,7 @@ class DataService
         }
         $defaults = ['recording' => '1', 'sample_interval' => '10', 'write_interval' => '300',
             'summary_refresh_interval' => '30', 'chart_update_interval' => '300',
-            'target_temp' => '19.5', 'temp_warning_threshold' => '3', 'hide_outliers' => '1'];
+            'target_temp' => '19.5', 'temp_warning_threshold' => '3', 'hide_outliers' => '1', 'cache_apis' => '0'];
         return array_merge($defaults, $config);
     }
 
