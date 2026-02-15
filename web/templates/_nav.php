@@ -27,7 +27,7 @@
         var s = parseInt(cfg.sample_interval || 10, 10);
         var w = parseInt(cfg.write_interval || 300, 10);
         el.textContent = '\u23F1 ' + s + 's / ' + (w >= 60 ? (w/60) + 'm' : w + 's');
-        el.title = 'Timing (recording): sample / write – Sample ' + s + 's, Write ' + (w >= 60 ? (w/60) + ' min' : w + 's');
+        el.title = 'Timing (recording): Sample ' + s + 's, Write ' + (w >= 60 ? (w/60) + ' min' : w + 's');
     };
 })();
 </script>
