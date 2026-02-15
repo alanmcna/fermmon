@@ -130,6 +130,7 @@ Replace `192.168.0.10` with your Pi's IP. Add other hostnames to the `subjectAlt
 <VirtualHost *:443>
     ServerName fermmon.local
     DocumentRoot /home/ubuntu/fermmon/web/public
+    LogLevel warn
     SSLEngine on
     SSLCertificateFile /etc/ssl/certs/fermmon.crt
     SSLCertificateKeyFile /etc/ssl/private/fermmon.key

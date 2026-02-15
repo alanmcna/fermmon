@@ -57,7 +57,16 @@ Then check SQLite again to confirm the value was written.
 ### 4. Apache / PHP error logs
 
 - **Apache error log**: `/var/log/apache2/fermmon-error.log` (or `error.log`)
+- **Apache access log** (real requests: GET/POST with status): `/var/log/apache2/fermmon-access.log`
 - **PHP errors**: Often in the Apache error log, or check `php.ini` for `error_log`
+
+The fermmon Apache config sets `LogLevel warn` to reduce mod_fcgid connection noise (Accepted/Closing) in the error log. For request-level debugging, use the access log:
+
+```bash
+sudo tail -f /var/log/apache2/fermmon-access.log
+```
+
+For PHP/Apache errors:
 
 ```bash
 sudo tail -f /var/log/apache2/fermmon-error.log
