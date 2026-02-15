@@ -110,11 +110,64 @@ $app->post('/api/versions', function (Request $request, Response $response) use 
     $version = $body['version'] ?? '';
     $brew = $body['brew'] ?? '';
     $url = $body['url'] ?? '';
+    $description = $body['description'] ?? '';
     if (!$version || !$brew) {
         $response->getBody()->write(json_encode(['error' => 'version and brew required']));
         return $response->withHeader('Content-Type', 'application/json')->withStatus(400);
     }
-    $dataService->addVersion($version, $brew, $url);
+    $dataService->addVersion($version, $brew, $url, $description);
+    $response->getBody()->write(json_encode(['ok' => true]));
+    return $response->withHeader('Content-Type', 'application/json');
+});
+
+// API: brew logs
+$app->get('/api/versions/{version}/brew-logs', function (Request $request, Response $response, array $args) use ($dataService) {
+    $version = $args['version'] ?? '';
+    $logs = $dataService->getBrewLogs($version);
+    $response->getBody()->write(json_encode($logs));
+    return $response->withHeader('Content-Type', 'application/json');
+});
+$app->post('/api/versions/{version}/brew-logs', function (Request $request, Response $response, array $args) use ($dataService) {
+    $version = $args['version'] ?? '';
+    $body = $request->getParsedBody();
+    $dateTime = $body['date_time'] ?? gmdate('Y-m-d H:i:s');
+    $note = $body['note'] ?? '';
+    if (trim($note) === '') {
+        $response->getBody()->write(json_encode(['error' => 'note required']));
+        return $response->withHeader('Content-Type', 'application/json')->withStatus(400);
+    }
+    $ok = $dataService->addBrewLog($version, $dateTime, $note);
+    $response->getBody()->write(json_encode($ok ? ['ok' => true] : ['error' => 'Failed to store']));
+    return $response->withHeader('Content-Type', 'application/json')->withStatus($ok ? 201 : 500);
+});
+$app->delete('/api/versions/{version}/brew-logs/{id}', function (Request $request, Response $response, array $args) use ($dataService) {
+    $version = $args['version'] ?? '';
+    $id = (int) ($args['id'] ?? 0);
+    if ($id <= 0) {
+        $response->getBody()->write(json_encode(['error' => 'invalid id']));
+        return $response->withHeader('Content-Type', 'application/json')->withStatus(400);
+    }
+    $ok = $dataService->deleteBrewLog($id, $version);
+    $response->getBody()->write(json_encode($ok ? ['ok' => true] : ['error' => 'Not found']));
+    return $response->withHeader('Content-Type', 'application/json')->withStatus($ok ? 200 : 404);
+});
+
+// API: update version
+$app->put('/api/versions/{version}', function (Request $request, Response $response, array $args) use ($dataService) {
+    $version = $args['version'] ?? '';
+    $body = $request->getParsedBody();
+    $brew = $body['brew'] ?? '';
+    $url = $body['url'] ?? '';
+    $description = $body['description'] ?? '';
+    if (!$version || !$brew) {
+        $response->getBody()->write(json_encode(['error' => 'version and brew required']));
+        return $response->withHeader('Content-Type', 'application/json')->withStatus(400);
+    }
+    $ok = $dataService->updateVersion($version, $brew, $url, $description);
+    if (!$ok) {
+        $response->getBody()->write(json_encode(['error' => 'Version not found']));
+        return $response->withHeader('Content-Type', 'application/json')->withStatus(404);
+    }
     $response->getBody()->write(json_encode(['ok' => true]));
     return $response->withHeader('Content-Type', 'application/json');
 });
@@ -132,6 +185,22 @@ $app->get('/', function (Request $request, Response $response) use ($dataService
         'currentVersion' => $currentVersion,
         'config' => $config,
         'navActive' => 'dashboard',
+    ]);
+});
+
+// Brews page
+$app->get('/brews', function (Request $request, Response $response) use ($dataService) {
+    $renderer = new PhpRenderer(__DIR__ . '/templates');
+    return $renderer->render($response, 'brews.php', [
+        'navActive' => 'brews',
+    ]);
+});
+
+// Log page
+$app->get('/log', function (Request $request, Response $response) use ($dataService) {
+    $renderer = new PhpRenderer(__DIR__ . '/templates');
+    return $renderer->render($response, 'log.php', [
+        'navActive' => 'log',
     ]);
 });
 

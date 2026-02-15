@@ -14,6 +14,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.5/dist/css/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous">
     <script defer src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.5/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
     <style>
         :root { --bs-body-font-family: 'Segoe UI', system-ui, sans-serif; }
         .chart-container { position: relative; height: 280px; margin-bottom: 2rem; }
@@ -41,7 +42,7 @@
         <div class="col">
             <select class="form-select fw-bold" id="versionFilter">
                 <?php foreach ($versions as $v): ?>
-                <option value="<?= htmlspecialchars($v['version']) ?>" data-brew="<?= htmlspecialchars($v['brew'] ?? '') ?>" data-url="<?= htmlspecialchars($v['url'] ?? '') ?>" <?= ($v['version'] === ($currentVersion ?? '')) ? 'selected' : '' ?>>
+                <option value="<?= htmlspecialchars($v['version']) ?>" data-brew="<?= htmlspecialchars($v['brew'] ?? '') ?>" data-url="<?= htmlspecialchars($v['url'] ?? '') ?>" data-description="<?= htmlspecialchars($v['description'] ?? '', ENT_QUOTES, 'UTF-8') ?>" <?= ($v['version'] === ($currentVersion ?? '')) ? 'selected' : '' ?>>
                     <?= htmlspecialchars('v' . $v['version'] . ' – ' . $v['brew']) ?><?= ($v['is_current'] ?? 0) ? ' (current)' : '' ?>
                 </option>
                 <?php endforeach; ?>
@@ -237,8 +238,14 @@
         return r.json();
     }
 
-    function initCharts(readings) {
-        const parseDt = (dt) => new Date(dt.replace(' ', 'T') + 'Z').getTime();
+    async function fetchBrewLogs(version) {
+        if (!version) return [];
+        const r = await fetch(baseUrl + '/api/versions/' + encodeURIComponent(version) + '/brew-logs');
+        return r.ok ? r.json() : [];
+    }
+
+    function initCharts(readings, brewLogs = []) {
+        const parseDt = (dt) => new Date((dt || '').replace(' ', 'T') + (dt && dt.length > 10 && dt[10] === 'T' ? '' : 'Z')).getTime();
         const t0 = readings.length ? parseDt(readings[0].date_time) : 0;
         const day = (dt) => (parseDt(dt) - t0) / (24 * 60 * 60 * 1000);
         const co2 = readings.map(r => ({ x: day(r.date_time), y: r.co2 }));
@@ -254,6 +261,29 @@
         const hoursRange = getChartHours();
 
         const startLabel = readings.length ? new Date(readings[0].date_time.replace(' ', 'T') + 'Z').toLocaleDateString() : '';
+
+        const logAnnotations = {};
+        brewLogs.forEach((log, i) => {
+            const x = day(log.date_time);
+            if (x >= 0 && x <= maxDay) {
+                logAnnotations['log' + i] = {
+                    type: 'line',
+                    xMin: x, xMax: x,
+                    borderColor: 'rgba(139, 92, 246, 0.8)',
+                    borderWidth: 1.5,
+                    borderDash: [4, 2],
+                    label: {
+                        display: true,
+                        content: (log.note || 'Log').split('\n'),
+                        position: 'end',
+                        textAlign: 'left',
+                        backgroundColor: 'rgba(139, 92, 246, 0.9)',
+                        color: 'white',
+                        font: { size: 10 }
+                    }
+                };
+            }
+        });
 
         const xTick = (v) => {
             if (hoursRange === 24) return ((v - maxDay) * 24).toFixed(0) + 'h';  // -24h to 0 (last 24h)
@@ -339,7 +369,9 @@
                     y: { type: 'linear', position: 'left', min: 0, suggestedMax: Math.max(4000, maxCo2 * 1.1), title: { display: true, text: 'CO2 (ppm)' } },
                     y1: { type: 'linear', position: 'right', min: 0, suggestedMax: Math.max(4000, maxTvoc * 1.1), grid: { drawOnChartArea: false }, title: { display: true, text: 'tVOC (ppb)' } }
                 },
-                plugins: { title: { display: true, text: 'CO2 and tVOC over Time' },
+                plugins: {
+                    annotation: { annotations: logAnnotations },
+                    title: { display: true, text: 'CO2 and tVOC over Time' },
                     tooltip: { enabled: false, external: externalTooltip,
                         callbacks: { title: (items) => {
                             const d = items[0]?.raw?.x;
@@ -420,7 +452,8 @@
             const version = sel ? sel.value : null;
             const hours = getChartHours();
             cachedReadings = await fetchReadings(version, null, hours);
-            initCharts(cachedReadings);
+            const brewLogs = await fetchBrewLogs(version);
+            initCharts(cachedReadings, brewLogs);
             await fetchLatest(version);
             showChartLoading(false);
             summaryIntervalId = setInterval(() => {
@@ -450,7 +483,8 @@
                 merged = merged.filter(r => parseDt(r.date_time) >= cutoff);
             }
             cachedReadings = merged;
-            initCharts(cachedReadings);
+            const brewLogs = await fetchBrewLogs(version);
+            initCharts(cachedReadings, brewLogs);
         }
     }
 
@@ -461,15 +495,18 @@
         const opt = sel.options[sel.selectedIndex];
         const brew = opt?.dataset?.brew || '';
         const url = opt?.dataset?.url || '';
+        const description = opt?.dataset?.description || '';
         if (!brew) {
             info.innerHTML = '—';
             return;
         }
-        if (url) {
-            info.innerHTML = '<a href="' + escapeHtml(url) + '" target="_blank" rel="noopener" class="brew-link">' + escapeHtml(brew) + '</a>';
-        } else {
-            info.textContent = brew;
+        let html = url
+            ? '<a href="' + escapeHtml(url) + '" target="_blank" rel="noopener" class="brew-link">' + escapeHtml(brew) + '</a>'
+            : escapeHtml(brew);
+        if (description) {
+            html += '<div class="text-muted small mt-1" style="white-space:pre-wrap">' + escapeHtml(description) + '</div>';
         }
+        info.innerHTML = html;
     }
     function escapeHtml(s) {
         const div = document.createElement('div');

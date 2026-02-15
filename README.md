@@ -167,13 +167,18 @@ Tests use an isolated SQLite database (`data/test/`). They live in `web/tests/`.
 
 ## Control page
 
-The **Control** page (`/control`) lets you manage recording and versions from the browser:
+The **Brews** page (`/brews`) manages brew versions: add new versions (with optional description) and edit existing brew details.
+
+The **Log** page (`/log`) lets you add brew log entries (e.g. dry hop at day 2). Entries are annotated on the CO2 chart.
+
+The **Control** page (`/control`) manages operational settings:
 
 | Feature | Description |
 |---------|-------------|
 | Start/Stop recording | Pause data writes while fermmon keeps running (temp/relay still active). Use when changing batches. |
-| Add new version | Add a new brew and set it as current. Best done when recording is paused. |
-| Timing | Adjust sample and write intervals (advanced). |
+| Temperature alerts | Target temp and warning threshold. |
+| Dashboard refresh | Poll intervals for summary and charts. |
+| Timing | Sample and write intervals (advanced). |
 
 fermmon reads the `config` table each cycle, so changes take effect without restart.
 
@@ -220,7 +225,7 @@ The old `http.service` (Python HTTP server) is replaced by Apache/nginx. Point D
 
 When you begin a new fermentation, set the current version so new readings are tagged correctly.
 
-**Via Control page** (recommended): Open `/control`, pause recording, add the new version (number, brew name, optional URL), then start recording again.
+**Via Brews page** (recommended): Open `/brews`, add the new version (number, brew name, optional URL, optional description). Pause recording on Control before adding if changing batches.
 
 **Via CLI**:
 

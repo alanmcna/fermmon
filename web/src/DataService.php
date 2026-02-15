@@ -20,6 +20,7 @@ class DataService
             if (file_exists($schemaPath)) {
                 $this->db->exec(file_get_contents($schemaPath));
             }
+            $this->migrateVersionsDescription();
         }
     }
 
@@ -108,6 +109,18 @@ class DataService
     }
 
     /**
+     * Add description column to versions if missing (migration).
+     */
+    private function migrateVersionsDescription(): void
+    {
+        if (!$this->db) return;
+        $cols = $this->db->query('PRAGMA table_info(versions)')->fetchAll(\PDO::FETCH_ASSOC);
+        if (!in_array('description', array_column($cols, 'name'), true)) {
+            $this->db->exec('ALTER TABLE versions ADD COLUMN description TEXT');
+        }
+    }
+
+    /**
      * Get available versions from DB. Current first, then by version ID descending.
      */
     public function getVersions(): array
@@ -115,7 +128,7 @@ class DataService
         if (!$this->db) return [];
 
         $stmt = $this->db->query(
-            'SELECT version, brew, url, is_current FROM versions 
+            'SELECT version, brew, url, description, is_current FROM versions 
              ORDER BY is_current DESC, CAST(version AS INTEGER) DESC'
         );
         return $stmt->fetchAll(\PDO::FETCH_ASSOC);
@@ -185,13 +198,65 @@ class DataService
     /**
      * Add new version and set as current.
      */
-    public function addVersion(string $version, string $brew, string $url = ''): bool
+    public function addVersion(string $version, string $brew, string $url = '', string $description = ''): bool
     {
         if (!$this->db) return false;
 
         $version = preg_replace('/^v/i', '', trim($version));
         $this->db->exec('UPDATE versions SET is_current = 0');
-        $stmt = $this->db->prepare('INSERT OR REPLACE INTO versions (version, brew, url, is_current) VALUES (?, ?, ?, 1)');
-        return $stmt->execute([$version, $brew, $url]);
+        $stmt = $this->db->prepare('INSERT OR REPLACE INTO versions (version, brew, url, description, is_current) VALUES (?, ?, ?, ?, 1)');
+        return $stmt->execute([$version, $brew, $url, $description]);
+    }
+
+    /**
+     * Update an existing version (brew, url, description). Version ID cannot be changed.
+     */
+    public function updateVersion(string $version, string $brew, string $url = '', string $description = ''): bool
+    {
+        if (!$this->db) return false;
+
+        $version = preg_replace('/^v/i', '', trim($version));
+        $stmt = $this->db->prepare('UPDATE versions SET brew = ?, url = ?, description = ? WHERE version = ?');
+        return $stmt->execute([$brew, $url, $description, $version]);
+    }
+
+    /**
+     * Get brew log entries for a version, ordered by date_time ascending.
+     */
+    public function getBrewLogs(string $version): array
+    {
+        if (!$this->db) return [];
+
+        $version = preg_replace('/^v/i', '', trim($version));
+        $stmt = $this->db->prepare('SELECT id, version, date_time, note FROM brew_logs WHERE version = ? ORDER BY date_time ASC');
+        $stmt->execute([$version]);
+        return $stmt->fetchAll(\PDO::FETCH_ASSOC);
+    }
+
+    /**
+     * Add a brew log entry. date_time in UTC (YYYY-MM-DD HH:MM:SS). note max 256 chars.
+     */
+    public function addBrewLog(string $version, string $dateTime, string $note): bool
+    {
+        if (!$this->db) return false;
+
+        $version = preg_replace('/^v/i', '', trim($version));
+        $note = mb_substr(trim($note), 0, 256);
+        if ($note === '') return false;
+
+        $stmt = $this->db->prepare('INSERT INTO brew_logs (version, date_time, note) VALUES (?, ?, ?)');
+        return $stmt->execute([$version, $dateTime, $note]);
+    }
+
+    /**
+     * Delete a brew log entry by id. Version must match (security check).
+     */
+    public function deleteBrewLog(int $id, string $version): bool
+    {
+        if (!$this->db) return false;
+
+        $version = preg_replace('/^v/i', '', trim($version));
+        $stmt = $this->db->prepare('DELETE FROM brew_logs WHERE id = ? AND version = ?');
+        return $stmt->execute([$id, $version]) && $stmt->rowCount() > 0;
     }
 }

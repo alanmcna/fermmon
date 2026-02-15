@@ -25,46 +25,20 @@
         </div>
     </div>
 
-    <div class="card mb-4" id="addVersionCard">
-        <div class="card-header">Add new version</div>
-        <div class="card-body">
-            <p class="text-muted small">Add a new brew and set it as current. Best done when recorder is paused.</p>
-            <form id="addVersionForm" class="row g-3">
-                <div class="col-md-2">
-                    <label class="form-label">Version</label>
-                    <input type="text" class="form-control" name="version" placeholder="15" required>
-                </div>
-                <div class="col-md-6">
-                    <label class="form-label">Brew name</label>
-                    <input type="text" class="form-control" name="brew" placeholder="My New IPA" required>
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label">URL (optional)</label>
-                    <input type="url" class="form-control" name="url" placeholder="https://...">
-                </div>
-                <div class="col-12">
-                    <button type="submit" class="btn btn-success">Add and set current</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
     <div class="card mb-4">
         <div class="card-header">Temperature alerts</div>
         <div class="card-body">
             <p class="text-muted small">Target temp (heat belt trigger) and warning threshold. Alert when internal temp is ± threshold from target.</p>
-            <div class="row g-3">
-                <div class="col-md-4">
-                    <label class="form-label">Target temp (°C)</label>
-                    <input type="number" class="form-control" id="targetTemp" min="10" max="30" step="0.5" value="<?= (float)($config['target_temp'] ?? 19.5) ?>">
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label">Warning threshold (°C)</label>
-                    <input type="number" class="form-control" id="tempWarningThreshold" min="1" max="10" step="0.5" value="<?= (float)($config['temp_warning_threshold'] ?? 3) ?>">
-                </div>
-                <div class="col-md-4 d-flex align-items-end">
-                    <button type="button" class="btn btn-outline-secondary" id="btnSaveTemp">Save</button>
-                </div>
+            <div class="mb-3">
+                <label class="form-label">Target temp (°C)</label>
+                <input type="number" class="form-control" id="targetTemp" min="10" max="30" step="0.5" value="<?= (float)($config['target_temp'] ?? 19.5) ?>">
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Warning threshold (°C)</label>
+                <input type="number" class="form-control" id="tempWarningThreshold" min="1" max="10" step="0.5" value="<?= (float)($config['temp_warning_threshold'] ?? 3) ?>">
+            </div>
+            <div class="mb-0">
+                <button type="button" class="btn btn-outline-secondary" id="btnSaveTemp">Save</button>
             </div>
         </div>
     </div>
@@ -73,24 +47,22 @@
         <div class="card-header">Dashboard refresh</div>
         <div class="card-body">
             <p class="text-muted small">How often the dashboard polls for new data. Summary = latest readings; Charts = incremental chart update.</p>
-            <div class="row g-3">
-                <div class="col-md-4">
-                    <label class="form-label">Summary (s)</label>
-                    <input type="number" class="form-control" id="summaryRefreshInterval" min="10" max="300" value="<?= (int)($config['summary_refresh_interval'] ?? 30) ?>">
+            <div class="mb-3">
+                <label class="form-label">Summary (s)</label>
+                <input type="number" class="form-control" id="summaryRefreshInterval" min="10" max="300" value="<?= (int)($config['summary_refresh_interval'] ?? 30) ?>">
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Charts (s)</label>
+                <input type="number" class="form-control" id="chartUpdateInterval" min="60" max="3600" value="<?= (int)($config['chart_update_interval'] ?? 300) ?>">
+            </div>
+            <div class="mb-3">
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="hideOutliers" <?= (($config['hide_outliers'] ?? '1') === '1') ? 'checked' : '' ?>>
+                    <label class="form-check-label" for="hideOutliers">Hide outliers (CO2/tVOC &gt; 6000)</label>
                 </div>
-                <div class="col-md-4">
-                    <label class="form-label">Charts (s)</label>
-                    <input type="number" class="form-control" id="chartUpdateInterval" min="60" max="3600" value="<?= (int)($config['chart_update_interval'] ?? 300) ?>">
-                </div>
-                <div class="col-md-4 d-flex align-items-end">
-                    <button type="button" class="btn btn-outline-secondary" id="btnSaveRefresh">Save</button>
-                </div>
-                <div class="col-12">
-                    <div class="form-check form-switch">
-                        <input class="form-check-input" type="checkbox" id="hideOutliers" <?= (($config['hide_outliers'] ?? '1') === '1') ? 'checked' : '' ?>>
-                        <label class="form-check-label" for="hideOutliers">Hide outliers (CO2/tVOC &gt; 6000)</label>
-                    </div>
-                </div>
+            </div>
+            <div class="mb-0">
+                <button type="button" class="btn btn-outline-secondary" id="btnSaveRefresh">Save</button>
             </div>
         </div>
     </div>
@@ -99,25 +71,23 @@
         <div class="card-header">Timing (advanced)</div>
         <div class="card-body">
             <p class="text-muted small">fermmon sampling and write intervals.</p>
-            <div class="row g-3">
-                <div class="col-md-4">
-                    <label class="form-label">Sample interval (s)</label>
-                    <input type="number" class="form-control" id="sampleInterval" min="5" max="60" value="<?= (int)($config['sample_interval'] ?? 10) ?>">
+            <div class="mb-3">
+                <label class="form-label">Sample interval (s)</label>
+                <input type="number" class="form-control" id="sampleInterval" min="5" max="60" value="<?= (int)($config['sample_interval'] ?? 10) ?>">
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Write interval (s)</label>
+                <input type="number" class="form-control" id="writeInterval" min="60" max="3600" value="<?= (int)($config['write_interval'] ?? 300) ?>">
+            </div>
+            <div class="mb-3">
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="cacheApis" <?= (($config['cache_apis'] ?? '0') === '1') ? 'checked' : '' ?>>
+                    <label class="form-check-label" for="cacheApis">Cache APIs for offline</label>
                 </div>
-                <div class="col-md-4">
-                    <label class="form-label">Write interval (s)</label>
-                    <input type="number" class="form-control" id="writeInterval" min="60" max="3600" value="<?= (int)($config['write_interval'] ?? 300) ?>">
-                </div>
-                <div class="col-md-4 d-flex align-items-end">
-                    <button type="button" class="btn btn-outline-secondary" id="btnSaveTiming">Save</button>
-                </div>
-                <div class="col-12">
-                    <div class="form-check form-switch">
-                        <input class="form-check-input" type="checkbox" id="cacheApis" <?= (($config['cache_apis'] ?? '0') === '1') ? 'checked' : '' ?>>
-                        <label class="form-check-label" for="cacheApis">Cache APIs for offline</label>
-                    </div>
-                    <p class="text-muted small mb-0 mt-1">Enable to cache API responses for offline use. Turn off if APIs fail with self-signed HTTPS.</p>
-                </div>
+                <p class="text-muted small mb-0 mt-1">Enable to cache API responses for offline use. Turn off if APIs fail with self-signed HTTPS.</p>
+            </div>
+            <div class="mb-0">
+                <button type="button" class="btn btn-outline-secondary" id="btnSaveTiming">Save</button>
             </div>
         </div>
     </div>
@@ -195,27 +165,6 @@
             body: JSON.stringify({ recording: next })
         });
         updateStatus();
-    });
-
-    document.getElementById('addVersionForm').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const fd = new FormData(e.target);
-        const r = await fetch(base + '/api/versions', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                version: fd.get('version'),
-                brew: fd.get('brew'),
-                url: fd.get('url') || ''
-            })
-        });
-        if (r.ok) {
-            e.target.reset();
-            alert('Version added. You can start recording.');
-        } else {
-            const err = await r.json();
-            alert(err.error || 'Failed');
-        }
     });
 
     document.getElementById('btnSaveTemp').addEventListener('click', async () => {

@@ -11,6 +11,8 @@
         <div class="collapse navbar-collapse" id="nav">
             <ul class="navbar-nav">
                 <li class="nav-item"><a class="nav-link<?= $navActive === 'dashboard' ? ' active' : '' ?>" href="/">Dashboard</a></li>
+                <li class="nav-item"><a class="nav-link<?= $navActive === 'brews' ? ' active' : '' ?>" href="/brews">Brews</a></li>
+                <li class="nav-item"><a class="nav-link<?= $navActive === 'log' ? ' active' : '' ?>" href="/log">Log</a></li>
                 <li class="nav-item"><a class="nav-link<?= $navActive === 'control' ? ' active' : '' ?>" href="/control">Control</a></li>
             </ul>
             <span id="navRefreshTimers" class="navbar-text ms-auto small" title="Summary / Charts refresh"></span>
@@ -25,7 +27,7 @@
         var s = parseInt(cfg.summary_refresh_interval || 30, 10);
         var c = parseInt(cfg.chart_update_interval || 300, 10);
         el.textContent = '\u23F1 ' + s + 's / ' + (c >= 60 ? (c/60) + 'm' : c + 's');
-        el.title = 'Summary: ' + s + 's, Charts: ' + (c >= 60 ? (c/60) + ' min' : c + 's)';
+        el.title = 'Summary: ' + s + 's, Charts: ' + (c >= 60 ? (c/60) + ' min' : c + 's');
     };
 })();
 </script>

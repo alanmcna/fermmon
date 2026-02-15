@@ -117,6 +117,72 @@ test('readings: POST stores a reading (single fermenter)', function () {
     expect($readings[0])->toMatchArray(['co2' => 1200.0, 'tvoc' => 450.0, 'temp' => 19.2, 'version' => '14']);
 });
 
+test('versions: PUT updates brew, url, description', function () {
+    // Add a version first
+    $addBody = (new StreamFactory())->createStream(json_encode(['version' => '99', 'brew' => 'Original', 'url' => 'https://a.com', 'description' => 'Old desc']));
+    $this->app->handle(
+        $this->requestFactory->createServerRequest('POST', '/api/versions')
+            ->withBody($addBody)
+            ->withHeader('Content-Type', 'application/json')
+    );
+
+    $putBody = (new StreamFactory())->createStream(json_encode(['brew' => 'Updated Brew', 'url' => 'https://b.com', 'description' => 'Hops: Cascade, Yeast: US-05']));
+    $putRequest = $this->requestFactory->createServerRequest('PUT', '/api/versions/99')
+        ->withBody($putBody)
+        ->withHeader('Content-Type', 'application/json');
+    $putResponse = $this->app->handle($putRequest);
+
+    expect($putResponse->getStatusCode())->toBe(200);
+    $json = json_decode((string) $putResponse->getBody(), true);
+    expect($json['ok'])->toBeTrue();
+
+    $getRequest = $this->requestFactory->createServerRequest('GET', '/api/versions');
+    $getResponse = $this->app->handle($getRequest);
+    $versions = json_decode((string) $getResponse->getBody(), true);
+    $v99 = array_values(array_filter($versions, fn($v) => $v['version'] === '99'))[0] ?? null;
+    expect($v99)->toMatchArray(['brew' => 'Updated Brew', 'url' => 'https://b.com', 'description' => 'Hops: Cascade, Yeast: US-05']);
+});
+
+test('brew-logs: GET and POST', function () {
+    $v = 'brewlog-' . bin2hex(random_bytes(4));
+    $versionBody = (new StreamFactory())->createStream(json_encode(['version' => $v, 'brew' => 'Log Test']));
+    $this->app->handle(
+        $this->requestFactory->createServerRequest('POST', '/api/versions')
+            ->withBody($versionBody)
+            ->withHeader('Content-Type', 'application/json')
+    );
+
+    $getRequest = $this->requestFactory->createServerRequest('GET', '/api/versions/' . $v . '/brew-logs');
+    $getResponse = $this->app->handle($getRequest);
+    expect($getResponse->getStatusCode())->toBe(200);
+    $logs = json_decode((string) $getResponse->getBody(), true);
+    expect($logs)->toBeArray();
+    expect($logs)->toBeEmpty();
+
+    $postBody = (new StreamFactory())->createStream(json_encode(['date_time' => '2025-02-14 10:00:00', 'note' => 'Dry hop']));
+    $postRequest = $this->requestFactory->createServerRequest('POST', '/api/versions/' . $v . '/brew-logs')
+        ->withBody($postBody)
+        ->withHeader('Content-Type', 'application/json');
+    $postResponse = $this->app->handle($postRequest);
+    expect($postResponse->getStatusCode())->toBe(201);
+
+    $getRequest2 = $this->requestFactory->createServerRequest('GET', '/api/versions/' . $v . '/brew-logs');
+    $getResponse2 = $this->app->handle($getRequest2);
+    $logs2 = json_decode((string) $getResponse2->getBody(), true);
+    expect($logs2)->toHaveCount(1);
+    expect($logs2[0])->toMatchArray(['note' => 'Dry hop', 'date_time' => '2025-02-14 10:00:00', 'version' => $v]);
+
+    $logId = $logs2[0]['id'];
+    $deleteRequest = $this->requestFactory->createServerRequest('DELETE', '/api/versions/' . $v . '/brew-logs/' . $logId);
+    $deleteResponse = $this->app->handle($deleteRequest);
+    expect($deleteResponse->getStatusCode())->toBe(200);
+
+    $getRequest3 = $this->requestFactory->createServerRequest('GET', '/api/versions/' . $v . '/brew-logs');
+    $getResponse3 = $this->app->handle($getRequest3);
+    $logs3 = json_decode((string) $getResponse3->getBody(), true);
+    expect($logs3)->toBeEmpty();
+});
+
 test('readings: POST requires co2, tvoc, temp', function () {
     $body = (new StreamFactory())->createStream(json_encode(['co2' => 100]));  // missing tvoc, temp
     $request = $this->requestFactory->createServerRequest('POST', '/api/readings')

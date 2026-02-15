@@ -22,9 +22,21 @@ CREATE TABLE IF NOT EXISTS versions (
     version TEXT PRIMARY KEY,
     brew TEXT NOT NULL,
     url TEXT,
+    description TEXT,
     is_current INTEGER DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS idx_versions_current ON versions(is_current);
+
+CREATE TABLE IF NOT EXISTS brew_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    version TEXT NOT NULL,
+    date_time TEXT NOT NULL,
+    note TEXT NOT NULL,
+    created_at TEXT DEFAULT (datetime('now')),
+    FOREIGN KEY (version) REFERENCES versions(version)
+);
+CREATE INDEX IF NOT EXISTS idx_brew_logs_version ON brew_logs(version);
+CREATE INDEX IF NOT EXISTS idx_brew_logs_date ON brew_logs(date_time);
 
 CREATE TABLE IF NOT EXISTS config (
     key TEXT PRIMARY KEY,
