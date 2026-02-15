@@ -95,7 +95,7 @@ def write_reading(conn, date_time, co2, tvoc, temp, version, rtemp, rhumi, relay
 
 
 def post_reading_to_api(date_time, co2, tvoc, temp, version, rtemp, rhumi, relay):
-    """POST a reading to the web API. Returns True on success."""
+    """POST a reading to the web API. Returns True on success, None if declined (409), False on error."""
     if not API_URL or not API_URL.strip():
         return False
     url = API_URL.rstrip('/') + '/api/readings'
@@ -120,9 +120,13 @@ def post_reading_to_api(date_time, co2, tvoc, temp, version, rtemp, rhumi, relay
                 print("info: posted to API - %s" % date_time)
                 return True
     except urllib.error.HTTPError as e:
-        print("warn: API HTTP %d - %s" % (e.code, e.read().decode()[:200]), file=sys.stderr)
+        body = e.read().decode()[:200]
+        print("error: API HTTP %d - %s" % (e.code, body), file=sys.stderr)
+        if e.code == 409:
+            print("info: reading declined (brew finished) - %s" % date_time)
+            return None  # declined; do not fall back to local SQLite
     except Exception as e:
-        print("warn: API error - %s" % e, file=sys.stderr)
+        print("error: API error - %s" % e, file=sys.stderr)
     return False
 
 
@@ -225,9 +229,10 @@ while True:
         date_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
         if API_URL and API_URL.strip():
-            ok = post_reading_to_api(date_time, co2, tvoc, temp, version_id, rtemp, rhumi, relay)
-            if not ok:
+            result = post_reading_to_api(date_time, co2, tvoc, temp, version_id, rtemp, rhumi, relay)
+            if result is False:
                 write_reading(conn, date_time, co2, tvoc, temp, version_id, rtemp, rhumi, relay)
+            # result is True: success. result is None: declined (409), do not store
         else:
             write_reading(conn, date_time, co2, tvoc, temp, version_id, rtemp, rhumi, relay)
 

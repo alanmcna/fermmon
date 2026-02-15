@@ -29,7 +29,7 @@
         .chart-tooltip .tt-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
         .chart-tooltip .tt-close { background: transparent; border: none; color: #fff; cursor: pointer; padding: 4px 8px; font-size: 18px; line-height: 1; opacity: 0.8; min-width: 36px; min-height: 36px; -webkit-tap-highlight-color: transparent; }
         .chart-tooltip .tt-close:hover { opacity: 1; }
-        .brew-link { color: #374151; text-decoration: none; }
+        .brew-link { color: #374151; text-decoration: none; font-weight: bold; }
         .brew-link:hover { color: #111827; text-decoration: underline; }
     </style>
 </head>
@@ -42,7 +42,7 @@
         <div class="col">
             <select class="form-select fw-bold" id="versionFilter">
                 <?php foreach ($versions as $v): ?>
-                <option value="<?= htmlspecialchars($v['version']) ?>" data-brew="<?= htmlspecialchars($v['brew'] ?? '') ?>" data-url="<?= htmlspecialchars($v['url'] ?? '') ?>" data-description="<?= htmlspecialchars($v['description'] ?? '', ENT_QUOTES, 'UTF-8') ?>" <?= ($v['version'] === ($currentVersion ?? '')) ? 'selected' : '' ?>>
+                <option value="<?= htmlspecialchars($v['version']) ?>" data-brew="<?= htmlspecialchars($v['brew'] ?? '') ?>" data-url="<?= htmlspecialchars($v['url'] ?? '') ?>" data-description="<?= htmlspecialchars($v['description'] ?? '', ENT_QUOTES, 'UTF-8') ?>" data-end-date="<?= htmlspecialchars($v['end_date'] ?? '') ?>" <?= ($v['version'] === ($currentVersion ?? '')) ? 'selected' : '' ?>>
                     <?= htmlspecialchars('v' . $v['version'] . ' – ' . $v['brew']) ?><?= ($v['is_current'] ?? 0) ? ' (current)' : '' ?>
                 </option>
                 <?php endforeach; ?>
@@ -63,8 +63,12 @@
     </div>
     <?php endif; ?>
     <div class="row">
-        <div class="col"><b>Latest Reading:</b></div>
-        <div class="col text-end" id="dateTime"><?= htmlspecialchars($latest['date_time'] ?? '—') ?></div>
+        <div class="col"><b>First Reading:</b></div>
+        <div class="col text-end" id="firstReading">—</div>
+    </div>
+    <div class="row">
+        <div class="col"><b id="lastReadingLabel">Latest Reading:</b></div>
+        <div class="col text-end"><span id="dateTime"><?= htmlspecialchars($latest['date_time'] ?? '—') ?></span><span id="brewDay" class="text-muted d-block"></span></div>
     </div>
     <div class="row"><div class="col"><hr/></div></div>
 
@@ -128,6 +132,7 @@
         </div>
         <div class="col-auto">
             <select class="form-select form-select-sm" id="chartRange" style="width: auto">
+                <option value="1h">Last hour</option>
                 <option value="24h" selected>Last 24 hours</option>
                 <option value="5d">Last 5 days</option>
                 <option value="all">All</option>
@@ -183,6 +188,42 @@
         if (el) el.style.display = 'none';
     }
 
+    async function fetchReadingRange(version) {
+        const firstEl = document.getElementById('firstReading');
+        const labelEl = document.getElementById('lastReadingLabel');
+        const dayEl = document.getElementById('brewDay');
+        if (!version) {
+            if (firstEl) firstEl.textContent = '—';
+            if (labelEl) labelEl.textContent = 'Latest Reading:';
+            if (dayEl) dayEl.textContent = '';
+            return;
+        }
+        const r = await fetch(baseUrl + '/api/versions/' + encodeURIComponent(version) + '/reading-range?t=' + Date.now());
+        if (!r.ok) {
+            if (firstEl) firstEl.textContent = '—';
+            if (dayEl) dayEl.textContent = '';
+            return;
+        }
+        const range = await r.json();
+        if (firstEl) firstEl.textContent = range.first_date_time ? new Date(range.first_date_time + ' UTC').toLocaleString() : '—';
+        const opt = document.getElementById('versionFilter')?.options[document.getElementById('versionFilter')?.selectedIndex];
+        const endDate = opt?.dataset?.endDate || '';
+        if (labelEl) labelEl.textContent = endDate ? 'Last Reading:' : 'Latest Reading:';
+        const parseDt = (dt) => new Date((dt || '').replace(' ', 'T') + 'Z').getTime();
+        const firstMs = range.first_date_time ? parseDt(range.first_date_time) : 0;
+        const lastMs = range.last_date_time ? parseDt(range.last_date_time) : Date.now();
+        const dayCount = firstMs ? Math.floor((lastMs - firstMs) / (24 * 60 * 60 * 1000)) : 0;
+        if (dayEl) {
+            if (firstMs) {
+                dayEl.textContent = '(Day ' + dayCount + ')';
+                dayEl.style.display = 'block';
+            } else {
+                dayEl.textContent = '';
+                dayEl.style.display = 'none';
+            }
+        }
+    }
+
     async function fetchLatest(version) {
         let url = baseUrl + '/api/latest?t=' + Date.now();
         if (version) url += '&version=' + encodeURIComponent(version);
@@ -194,7 +235,8 @@
             hideCachedBanner();
         }
         const d = await r.json();
-        document.getElementById('dateTime').textContent = d.date_time ? new Date(d.date_time + ' UTC').toLocaleString() : '—';
+        const dtEl = document.getElementById('dateTime');
+        if (dtEl) dtEl.textContent = d.date_time ? new Date(d.date_time + ' UTC').toLocaleString() : '—';
         document.getElementById('intTemp').textContent = d.temp != null ? d.temp.toFixed(1) + ' °C' : '—';
         const intTempIcon = document.getElementById('intTempIcon');
         if (intTempIcon) intTempIcon.style.color = tempColor(d.temp);
@@ -219,6 +261,7 @@
     function getChartHours() {
         const sel = document.getElementById('chartRange');
         if (!sel) return null;
+        if (sel.value === '1h') return 1;
         if (sel.value === '24h') return 24;
         if (sel.value === '5d') return 120;
         return null;
@@ -286,6 +329,7 @@
         });
 
         const xTick = (v) => {
+            if (hoursRange === 1) return Math.round((v - maxDay) * 60) + 'm';  // -60m to 0 (last 1h)
             if (hoursRange === 24) return ((v - maxDay) * 24).toFixed(0) + 'h';  // -24h to 0 (last 24h)
             if (hoursRange === 120) return (v % 1 === 0 ? Math.round(v - maxDay).toString() : '');  // -5 to 0 (last 5d)
             return v % 1 === 0 ? 'Day ' + v : '';  // 0 to X (all)
@@ -376,7 +420,8 @@
                         callbacks: { title: (items) => {
                             const d = items[0]?.raw?.x;
                             let label;
-                            if (hoursRange === 24) label = ((d - maxDay) * 24).toFixed(0) + 'h';
+                            if (hoursRange === 1) label = Math.round((d - maxDay) * 60) + 'm';
+                            else if (hoursRange === 24) label = ((d - maxDay) * 24).toFixed(0) + 'h';
                             else if (hoursRange === 120) label = Math.round(d - maxDay);
                             else label = 'Day ' + d.toFixed(1);
                             const idx = items[0]?.dataIndex;
@@ -414,7 +459,8 @@
                         callbacks: { title: (items) => {
                             const d = items[0]?.raw?.x;
                             let label;
-                            if (hoursRange === 24) label = ((d - maxDay) * 24).toFixed(0) + 'h';
+                            if (hoursRange === 1) label = Math.round((d - maxDay) * 60) + 'm';
+                            else if (hoursRange === 24) label = ((d - maxDay) * 24).toFixed(0) + 'h';
                             else if (hoursRange === 120) label = Math.round(d - maxDay);
                             else label = 'Day ' + d.toFixed(1);
                             const idx = items[0]?.dataIndex;
@@ -454,11 +500,14 @@
             cachedReadings = await fetchReadings(version, null, hours);
             const brewLogs = await fetchBrewLogs(version);
             initCharts(cachedReadings, brewLogs);
-            await fetchLatest(version);
+            await Promise.all([fetchLatest(version), fetchReadingRange(version)]);
             showChartLoading(false);
             summaryIntervalId = setInterval(() => {
                 const s = document.getElementById('versionFilter');
-                if (s) fetchLatest(s.value);
+                if (s) {
+                    fetchLatest(s.value);
+                    fetchReadingRange(s.value);
+                }
             }, summaryRefreshMs);
             chartIntervalId = setInterval(incrementalChartUpdate, chartUpdateMs);
         } catch (e) {
@@ -504,8 +553,9 @@
             ? '<a href="' + escapeHtml(url) + '" target="_blank" rel="noopener" class="brew-link">' + escapeHtml(brew) + '</a>'
             : escapeHtml(brew);
         if (description) {
-            html += '<div class="text-muted small mt-1" style="white-space:pre-wrap">' + escapeHtml(description) + '</div>';
+            html += '<div class="text-muted small mt-1 mb-2" style="white-space:pre-wrap">' + escapeHtml(description) + '</div>';
         }
+        html += '<div class="mb-2"></div>';
         info.innerHTML = html;
     }
     function escapeHtml(s) {

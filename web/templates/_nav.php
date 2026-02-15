@@ -15,7 +15,7 @@
                 <li class="nav-item"><a class="nav-link<?= $navActive === 'log' ? ' active' : '' ?>" href="/log">Log</a></li>
                 <li class="nav-item"><a class="nav-link<?= $navActive === 'control' ? ' active' : '' ?>" href="/control">Control</a></li>
             </ul>
-            <span id="navRefreshTimers" class="navbar-text ms-auto small" title="Summary / Charts refresh"></span>
+            <span id="navRefreshTimers" class="navbar-text ms-auto small" title="Timing (recording): sample / write"></span>
         </div>
     </div>
 </nav>
@@ -24,10 +24,10 @@
     window.updateNavTimers = function(cfg) {
         var el = document.getElementById('navRefreshTimers');
         if (!el || !cfg) return;
-        var s = parseInt(cfg.summary_refresh_interval || 30, 10);
-        var c = parseInt(cfg.chart_update_interval || 300, 10);
-        el.textContent = '\u23F1 ' + s + 's / ' + (c >= 60 ? (c/60) + 'm' : c + 's');
-        el.title = 'Summary: ' + s + 's, Charts: ' + (c >= 60 ? (c/60) + ' min' : c + 's');
+        var s = parseInt(cfg.sample_interval || 10, 10);
+        var w = parseInt(cfg.write_interval || 300, 10);
+        el.textContent = '\u23F1 ' + s + 's / ' + (w >= 60 ? (w/60) + 'm' : w + 's');
+        el.title = 'Timing (recording): sample / write – Sample ' + s + 's, Write ' + (w >= 60 ? (w/60) + ' min' : w + 's');
     };
 })();
 </script>

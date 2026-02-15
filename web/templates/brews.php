@@ -45,7 +45,7 @@
     <div class="card mb-4">
         <div class="card-header">Update past brew details</div>
         <div class="card-body">
-            <p class="text-muted small">Edit brew name, URL or description for an existing version.</p>
+            <p class="text-muted small">Edit brew name, URL, description or end date. Set end date when the brew has finished (shows "Last Reading" instead of "Latest Reading" on dashboard).</p>
             <div class="mb-3">
                 <label class="form-label">Version</label>
                 <select class="form-select" id="editVersionSelect">
@@ -66,6 +66,10 @@
                     <div class="mb-3">
                         <label class="form-label">Description (optional)</label>
                         <textarea class="form-control" name="description" id="editDescription" rows="4" placeholder="Ingredients, hops, yeast, method customisations..."></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">End date (optional)</label>
+                        <input type="date" class="form-control" name="end_date" id="editEndDate" placeholder="When brew finished">
                     </div>
                     <div class="mb-0">
                         <button type="button" class="btn btn-primary" id="btnSaveEditVersion">Save</button>
@@ -134,6 +138,7 @@
         document.getElementById('editBrew').value = v.brew || '';
         document.getElementById('editUrl').value = v.url || '';
         document.getElementById('editDescription').value = v.description || '';
+        document.getElementById('editEndDate').value = (v.end_date || '').slice(0, 10);
         wrap.style.display = 'block';
     });
 
@@ -142,10 +147,12 @@
         const brew = document.getElementById('editBrew').value;
         const url = document.getElementById('editUrl').value;
         const description = document.getElementById('editDescription').value;
+        const endDateRaw = document.getElementById('editEndDate').value;
+        const endDate = endDateRaw ? endDateRaw + ' 00:00:00' : '';
         const r = await fetch(base + '/api/versions/' + encodeURIComponent(version), {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ brew, url, description })
+            body: JSON.stringify({ brew, url, description, end_date: endDate || null })
         });
         if (r.ok) {
             document.getElementById('editVersionFormWrap').style.display = 'none';

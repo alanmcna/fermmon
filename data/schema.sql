@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS versions (
     brew TEXT NOT NULL,
     url TEXT,
     description TEXT,
+    end_date TEXT,
     is_current INTEGER DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS idx_versions_current ON versions(is_current);

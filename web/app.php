@@ -53,6 +53,10 @@ $app->post('/api/readings', function (Request $request, Response $response) use 
         return $response->withHeader('Content-Type', 'application/json')->withStatus(400);
     }
     $version = $body['version'] ?? null;
+    if ($dataService->versionIsFinished($version)) {
+        $response->getBody()->write(json_encode(['error' => 'Brew is finished; readings declined']));
+        return $response->withHeader('Content-Type', 'application/json')->withStatus(409);
+    }
     $rtemp = isset($body['rtemp']) ? (float)$body['rtemp'] : null;
     $rhumi = isset($body['rhumi']) ? (float)$body['rhumi'] : null;
     $relay = isset($body['relay']) ? (int)$body['relay'] : null;
@@ -83,6 +87,16 @@ $app->get('/api/readings', function (Request $request, Response $response) use (
 $app->get('/api/versions', function (Request $request, Response $response) use ($dataService) {
     $versions = $dataService->getVersions();
     $response->getBody()->write(json_encode($versions));
+    return $response->withHeader('Content-Type', 'application/json');
+});
+$app->get('/api/versions/{version}/reading-range', function (Request $request, Response $response, array $args) use ($dataService) {
+    $version = $args['version'] ?? '';
+    $range = $dataService->getReadingRange($version);
+    if (!$range) {
+        $response->getBody()->write(json_encode(['error' => 'No readings']));
+        return $response->withHeader('Content-Type', 'application/json')->withStatus(404);
+    }
+    $response->getBody()->write(json_encode($range));
     return $response->withHeader('Content-Type', 'application/json');
 });
 
@@ -159,11 +173,12 @@ $app->put('/api/versions/{version}', function (Request $request, Response $respo
     $brew = $body['brew'] ?? '';
     $url = $body['url'] ?? '';
     $description = $body['description'] ?? '';
+    $endDate = isset($body['end_date']) ? (trim($body['end_date']) ?: null) : null;
     if (!$version || !$brew) {
         $response->getBody()->write(json_encode(['error' => 'version and brew required']));
         return $response->withHeader('Content-Type', 'application/json')->withStatus(400);
     }
-    $ok = $dataService->updateVersion($version, $brew, $url, $description);
+    $ok = $dataService->updateVersion($version, $brew, $url, $description, $endDate);
     if (!$ok) {
         $response->getBody()->write(json_encode(['error' => 'Version not found']));
         return $response->withHeader('Content-Type', 'application/json')->withStatus(404);

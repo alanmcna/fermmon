@@ -25,6 +25,24 @@ class DataService
     }
 
     /**
+     * Get first and last reading date_time for a version. Returns null if no readings.
+     */
+    public function getReadingRange(?string $version): ?array
+    {
+        if (!$this->db || !$version) return null;
+
+        $version = preg_replace('/^v/i', '', trim($version));
+        $stmt = $this->db->prepare(
+            'SELECT MIN(date_time) AS first_date_time, MAX(date_time) AS last_date_time 
+             FROM readings WHERE version = ? AND co2 <= 25000 AND tvoc <= 25000 AND temp > 0'
+        );
+        $stmt->execute([$version]);
+        $row = $stmt->fetch(\PDO::FETCH_ASSOC);
+        if (!$row || $row['first_date_time'] === null) return null;
+        return $row;
+    }
+
+    /**
      * Get latest reading with brew name. Optionally filter by version ID.
      */
     public function getLatest(?string $version = null): ?array
@@ -118,6 +136,10 @@ class DataService
         if (!in_array('description', array_column($cols, 'name'), true)) {
             $this->db->exec('ALTER TABLE versions ADD COLUMN description TEXT');
         }
+        $cols = $this->db->query('PRAGMA table_info(versions)')->fetchAll(\PDO::FETCH_ASSOC);
+        if (!in_array('end_date', array_column($cols, 'name'), true)) {
+            $this->db->exec('ALTER TABLE versions ADD COLUMN end_date TEXT');
+        }
     }
 
     /**
@@ -128,7 +150,7 @@ class DataService
         if (!$this->db) return [];
 
         $stmt = $this->db->query(
-            'SELECT version, brew, url, description, is_current FROM versions 
+            'SELECT version, brew, url, description, end_date, is_current FROM versions 
              ORDER BY is_current DESC, CAST(version AS INTEGER) DESC'
         );
         return $stmt->fetchAll(\PDO::FETCH_ASSOC);
@@ -163,6 +185,24 @@ class DataService
 
         $stmt = $this->db->prepare('INSERT OR REPLACE INTO config (key, value) VALUES (?, ?)');
         return $stmt->execute([$key, $value]);
+    }
+
+    /**
+     * Check if a version is marked as finished (has end_date).
+     */
+    public function versionIsFinished(?string $version): bool
+    {
+        if (!$this->db) return false;
+
+        if ($version === null || $version === '') {
+            $row = $this->db->query('SELECT end_date FROM versions WHERE is_current = 1 LIMIT 1')->fetch(\PDO::FETCH_ASSOC);
+            return !empty($row['end_date']);
+        }
+        $version = preg_replace('/^v/i', '', trim($version));
+        $stmt = $this->db->prepare('SELECT end_date FROM versions WHERE version = ?');
+        $stmt->execute([$version]);
+        $row = $stmt->fetch(\PDO::FETCH_ASSOC);
+        return $row && !empty($row['end_date']);
     }
 
     /**
@@ -209,15 +249,15 @@ class DataService
     }
 
     /**
-     * Update an existing version (brew, url, description). Version ID cannot be changed.
+     * Update an existing version (brew, url, description, end_date). Version ID cannot be changed.
      */
-    public function updateVersion(string $version, string $brew, string $url = '', string $description = ''): bool
+    public function updateVersion(string $version, string $brew, string $url = '', string $description = '', ?string $endDate = null): bool
     {
         if (!$this->db) return false;
 
         $version = preg_replace('/^v/i', '', trim($version));
-        $stmt = $this->db->prepare('UPDATE versions SET brew = ?, url = ?, description = ? WHERE version = ?');
-        return $stmt->execute([$brew, $url, $description, $version]);
+        $stmt = $this->db->prepare('UPDATE versions SET brew = ?, url = ?, description = ?, end_date = ? WHERE version = ?');
+        return $stmt->execute([$brew, $url, $description, $endDate ?: null, $version]);
     }
 
     /**

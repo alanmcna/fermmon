@@ -183,6 +183,33 @@ test('brew-logs: GET and POST', function () {
     expect($logs3)->toBeEmpty();
 });
 
+test('readings: POST returns 409 when brew is finished', function () {
+    $v = 'finished-' . bin2hex(random_bytes(4));
+    $addBody = (new StreamFactory())->createStream(json_encode(['version' => $v, 'brew' => 'Done Brew']));
+    $this->app->handle(
+        $this->requestFactory->createServerRequest('POST', '/api/versions')
+            ->withBody($addBody)
+            ->withHeader('Content-Type', 'application/json')
+    );
+    $putBody = (new StreamFactory())->createStream(json_encode(['brew' => 'Done Brew', 'url' => '', 'description' => '', 'end_date' => '2025-02-14 00:00:00']));
+    $this->app->handle(
+        $this->requestFactory->createServerRequest('PUT', '/api/versions/' . $v)
+            ->withBody($putBody)
+            ->withHeader('Content-Type', 'application/json')
+    );
+
+    $postBody = (new StreamFactory())->createStream(json_encode(['co2' => 500, 'tvoc' => 200, 'temp' => 19, 'version' => $v]));
+    $postRequest = $this->requestFactory->createServerRequest('POST', '/api/readings')
+        ->withBody($postBody)
+        ->withHeader('Content-Type', 'application/json');
+    $postResponse = $this->app->handle($postRequest);
+
+    expect($postResponse->getStatusCode())->toBe(409);
+    $json = json_decode((string) $postResponse->getBody(), true);
+    expect($json)->toHaveKey('error');
+    expect($json['error'])->toContain('finished');
+});
+
 test('readings: POST requires co2, tvoc, temp', function () {
     $body = (new StreamFactory())->createStream(json_encode(['co2' => 100]));  // missing tvoc, temp
     $request = $this->requestFactory->createServerRequest('POST', '/api/readings')
