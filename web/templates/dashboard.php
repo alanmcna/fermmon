@@ -329,7 +329,7 @@
         });
 
         const xTick = (v) => {
-            if (hoursRange === 1) return Math.round((v - maxDay) * 60) + 'm';  // -60m to 0 (last 1h)
+            if (hoursRange === 1) return Math.round((v - maxDay) * 24 * 60) + 'm';  // -60m to 0m (last 1h)
             if (hoursRange === 24) return ((v - maxDay) * 24).toFixed(0) + 'h';  // -24h to 0 (last 24h)
             if (hoursRange === 120) return (v % 1 === 0 ? Math.round(v - maxDay).toString() : '');  // -5 to 0 (last 5d)
             return v % 1 === 0 ? 'Day ' + v : '';  // 0 to X (all)
@@ -420,7 +420,7 @@
                         callbacks: { title: (items) => {
                             const d = items[0]?.raw?.x;
                             let label;
-                            if (hoursRange === 1) label = Math.round((d - maxDay) * 60) + 'm';
+                            if (hoursRange === 1) label = Math.round((d - maxDay) * 24 * 60) + 'm';
                             else if (hoursRange === 24) label = ((d - maxDay) * 24).toFixed(0) + 'h';
                             else if (hoursRange === 120) label = Math.round(d - maxDay);
                             else label = 'Day ' + d.toFixed(1);
@@ -459,7 +459,7 @@
                         callbacks: { title: (items) => {
                             const d = items[0]?.raw?.x;
                             let label;
-                            if (hoursRange === 1) label = Math.round((d - maxDay) * 60) + 'm';
+                            if (hoursRange === 1) label = Math.round((d - maxDay) * 24 * 60) + 'm';
                             else if (hoursRange === 24) label = ((d - maxDay) * 24).toFixed(0) + 'h';
                             else if (hoursRange === 120) label = Math.round(d - maxDay);
                             else label = 'Day ' + d.toFixed(1);
