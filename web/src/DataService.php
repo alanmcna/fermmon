@@ -74,7 +74,7 @@ class DataService
     /**
      * Get readings for charts.
      * Optional outlier filter: max_co2, max_tvoc cap to exclude sensor spikes.
-     * Optional date filter: from (YYYY-MM-DD HH:MM:SS) - only readings on or after this time.
+     * Optional date filter: from (readings on or after), to (readings on or before).
      * Typical fermentation: 1–3k ppm CO2, 500–2k ppb tVOC. Spikes to 16k+ are often sensor glitches.
      */
     public function getReadings(
@@ -83,7 +83,8 @@ class DataService
         ?int $maxCo2 = null,
         ?int $maxTvoc = null,
         ?string $since = null,
-        ?string $from = null
+        ?string $from = null,
+        ?string $to = null
     ): array {
         if (!$this->db) return [];
 
@@ -111,6 +112,10 @@ class DataService
         if ($from !== null) {
             $sql .= ' AND date_time >= ?';
             $params[] = $from;
+        }
+        if ($to !== null) {
+            $sql .= ' AND date_time <= ?';
+            $params[] = $to;
         }
 
         $sql .= ' ORDER BY date_time DESC';

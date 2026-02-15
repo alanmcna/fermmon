@@ -267,11 +267,12 @@
         return null;
     }
 
-    async function fetchReadings(version, since, hours) {
+    async function fetchReadings(version, since, hours, endDate) {
         let url = baseUrl + '/api/readings?limit=0';
         if (version) url += '&version=' + encodeURIComponent(version);
         if (since) url += '&since=' + encodeURIComponent(since);
         if (hours) url += '&hours=' + hours;
+        if (hours && endDate) url += '&end=' + encodeURIComponent(endDate);
         if (hideOutliers) url += '&max_co2=6000&max_tvoc=6000';
         const r = await fetch(url);
         if (!r.ok) return [];
@@ -497,8 +498,9 @@
             if (chartIntervalId) clearInterval(chartIntervalId);
             const sel = document.getElementById('versionFilter');
             const version = sel ? sel.value : null;
+            const endDate = sel?.options[sel.selectedIndex]?.dataset?.endDate || '';
             const hours = getChartHours();
-            cachedReadings = await fetchReadings(version, null, hours);
+            cachedReadings = await fetchReadings(version, null, hours, endDate || null);
             const brewLogs = await fetchBrewLogs(version);
             initCharts(cachedReadings, brewLogs);
             await Promise.all([fetchLatest(version), fetchReadingRange(version)]);
@@ -520,10 +522,12 @@
     async function incrementalChartUpdate() {
         const sel = document.getElementById('versionFilter');
         const version = sel ? sel.value : null;
+        const endDate = sel?.options[sel.selectedIndex]?.dataset?.endDate || '';
         if (!cachedReadings.length || !chartCO2) return;
+        if (endDate) return;
         const lastDt = cachedReadings[cachedReadings.length - 1].date_time;
         const hours = getChartHours();
-        const newReadings = await fetchReadings(version, lastDt, hours);
+        const newReadings = await fetchReadings(version, lastDt, hours, null);
         if (newReadings.length) {
             let merged = cachedReadings.concat(newReadings);
             if (hours) {

@@ -72,13 +72,17 @@ $app->get('/api/readings', function (Request $request, Response $response) use (
     $maxTvoc = isset($params['max_tvoc']) ? (int)$params['max_tvoc'] : null;
     $since = $params['since'] ?? null;
     $from = $params['from'] ?? null;
-    if ($from === null && isset($params['hours'])) {
+    $to = null;
+    if (isset($params['hours']) && (int)$params['hours'] > 0) {
         $hours = (int)$params['hours'];
-        if ($hours > 0) {
-            $from = date('Y-m-d H:i:s', time() - $hours * 3600);
+        $endParam = $params['end'] ?? null;
+        $endTs = $endParam ? strtotime($endParam) : time();
+        if ($endTs !== false) {
+            $from = date('Y-m-d H:i:s', $endTs - $hours * 3600);
+            $to = $endParam ? date('Y-m-d H:i:s', $endTs) : null;
         }
     }
-    $readings = $dataService->getReadings($version, $limit, $maxCo2, $maxTvoc, $since, $from);
+    $readings = $dataService->getReadings($version, $limit, $maxCo2, $maxTvoc, $since, $from, $to);
     $response->getBody()->write(json_encode($readings));
     return $response->withHeader('Content-Type', 'application/json');
 });
