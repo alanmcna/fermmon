@@ -302,6 +302,7 @@
         const maxTvoc = tvoc.length ? Math.max(...tvoc.map(p => p.y)) : 0;
         const maxDay = readings.length ? day(readings[readings.length - 1].date_time) : 0;
         const hoursRange = getChartHours();
+        const xMax = (hoursRange === 1 || hoursRange === 24 || hoursRange === 120) ? Math.max(maxDay, 0.001) : Math.max(0.1, maxDay);
 
         const startLabel = readings.length ? new Date(readings[0].date_time.replace(' ', 'T') + 'Z').toLocaleDateString() : '';
 
@@ -407,7 +408,7 @@
                 maintainAspectRatio: false,
                 interaction: { mode: 'index', intersect: false },
                 scales: {
-                    x: { type: 'linear', min: 0, max: Math.max(0.1, maxDay),
+                    x: { type: 'linear', min: 0, max: xMax,
                          ticks: { stepSize: 1, callback: (v) => xTick(v) },
                          title: { display: true, text: 'From ' + startLabel } },
                     y: { type: 'linear', position: 'left', min: 0, suggestedMax: Math.max(4000, maxCo2 * 1.1), title: { display: true, text: 'CO2 (ppm)' } },
@@ -447,7 +448,7 @@
                 maintainAspectRatio: false,
                 interaction: { mode: 'index', intersect: false },
                 scales: {
-                    x: { type: 'linear', min: 0, max: Math.max(0.1, maxDay),
+                    x: { type: 'linear', min: 0, max: xMax,
                          ticks: { stepSize: 1, callback: (v) => xTick(v) },
                          title: { display: true, text: 'From ' + startLabel } },
                     y: { type: 'linear', position: 'left', min: 0, max: 50, title: { display: true, text: '°C' } },
