@@ -224,7 +224,7 @@
         }
     }
 
-    async function fetchLatest(version) {
+    async function fetchLatest(version, endDate) {
         let url = baseUrl + '/api/latest?t=' + Date.now();
         if (version) url += '&version=' + encodeURIComponent(version);
         const r = await fetch(url);
@@ -241,7 +241,8 @@
         const intTempIcon = document.getElementById('intTempIcon');
         if (intTempIcon) intTempIcon.style.color = tempColor(d.temp);
         const tempOutOfRange = d.temp != null && (d.temp < targetTemp - tempWarningThreshold || d.temp > targetTemp + tempWarningThreshold);
-        if (tempOutOfRange && 'Notification' in window && Notification.permission === 'granted') {
+        const isActiveBrew = !endDate;
+        if (tempOutOfRange && isActiveBrew && 'Notification' in window && Notification.permission === 'granted') {
             const now = Date.now();
             if (now - lastTempWarningNotify > TEMP_NOTIFY_COOLDOWN) {
                 lastTempWarningNotify = now;
@@ -503,12 +504,13 @@
             cachedReadings = await fetchReadings(version, null, hours, endDate || null);
             const brewLogs = await fetchBrewLogs(version);
             initCharts(cachedReadings, brewLogs);
-            await Promise.all([fetchLatest(version), fetchReadingRange(version)]);
+            await Promise.all([fetchLatest(version, endDate || null), fetchReadingRange(version)]);
             showChartLoading(false);
             summaryIntervalId = setInterval(() => {
                 const s = document.getElementById('versionFilter');
                 if (s) {
-                    fetchLatest(s.value);
+                    const endDate = s.options[s.selectedIndex]?.dataset?.endDate || '';
+                    fetchLatest(s.value, endDate || null);
                     fetchReadingRange(s.value);
                 }
             }, summaryRefreshMs);
