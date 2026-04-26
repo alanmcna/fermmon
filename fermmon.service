@@ -1,11 +1,15 @@
 [Unit]
 Description=Brew Fermentor Monitor
 After=multi-user.target
+# Never give up restarting: disables the default burst limit (5 starts / 10s)
+# that previously caused start-limit-hit after a few rapid sensor-init failures.
+StartLimitIntervalSec=0
 
 [Service]
 Environment=PYTHONPATH=/home/ubuntu/.local/lib/python3.11/site-packages
 Type=simple
 Restart=always
+RestartSec=10
 WorkingDirectory=/home/ubuntu/fermmon
 ExecStart=/usr/bin/python /home/ubuntu/fermmon/fermmon.py
 

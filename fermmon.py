@@ -151,7 +151,7 @@ ccs811Sensor = qwiic_ccs811.QwiicCcs811()
 
 if ccs811Sensor.is_connected() == False:
     print("Error: the qwiic CCS811 device isn't connected to the system - please check your connection", file=sys.stderr)
-    sys.exit(0)
+    sys.exit(1)
 
 ccs811Sensor.begin()
 
@@ -174,70 +174,79 @@ conn = get_db()
 version, brew = get_version(conn)
 
 while True:
-    cfg = get_config(conn)
-    recording = cfg.get('recording', '1') == '1'
-    sample_interval = int(cfg.get('sample_interval', str(SAMPLE_INTERVAL)))
-    write_interval = int(cfg.get('write_interval', str(WRITE_INTERVAL)))
-    # get (external) temp and humidity from the rowi and set the ccs811 env data
-    rtemp, rhumi = r.getTemperature()
-    ccs811Sensor.set_environmental_data(rhumi, rtemp)
+    # Wrap the whole loop so transient failures (I2C glitch, SQLite lock,
+    # network blip on the rowi) don't exit the process and chew through
+    # systemd's restart budget. systemd still restarts us on real crashes.
+    try:
+        cfg = get_config(conn)
+        recording = cfg.get('recording', '1') == '1'
+        sample_interval = int(cfg.get('sample_interval', str(SAMPLE_INTERVAL)))
+        write_interval = int(cfg.get('write_interval', str(WRITE_INTERVAL)))
+        # get (external) temp and humidity from the rowi and set the ccs811 env data
+        rtemp, rhumi = r.getTemperature()
+        ccs811Sensor.set_environmental_data(rhumi, rtemp)
 
-    if ccs811Sensor.data_available():
-        ccs811Sensor.read_algorithm_results()
+        if ccs811Sensor.data_available():
+            ccs811Sensor.read_algorithm_results()
 
-        co2 += ccs811Sensor.get_co2()
-        tvoc += ccs811Sensor.get_tvoc()
-        print("debug: co2:%.02f, tvoc:%.02f, incr:%d" % (co2, tvoc, incr));
+            co2 += ccs811Sensor.get_co2()
+            tvoc += ccs811Sensor.get_tvoc()
+            print("debug: co2:%.02f, tvoc:%.02f, incr:%d" % (co2, tvoc, incr));
 
-        incr += sample_interval
-    else:
-        print("debug: ccs811 data unavailable (incr:%d)" % incr);
-
-    if incr >= write_interval:
-        n = incr / sample_interval
-        co2 = co2 / n
-        tvoc = tvoc / n
-
-        temp = ds18B20(tempSensor)  # internal temperature
-        if temp is None:
-            temp = 0  # just hack it
-
-        if temp > 12 and temp < TARGET_TEMP and r.getRelayStatus() == "0":
-            r.setRelayStatus(True)
-            print("debug: turning on rowi - too cold")
-        elif temp >= TARGET_TEMP and r.getRelayStatus() == "1":
-            r.setRelayStatus(False)
-            print("debug: turning off rowi - too hot")
-        elif temp < LOW_TEMP_WARNING and r.getRelayStatus() == "1":
-            r.setRelayStatus(False)
-            print("debug: turning off rowi - bogus temp reading")
-
-        relay = r.getRelayStatus()
-
-        if not recording:
-            print("debug: recording paused - skipping write")
-            incr = co2 = tvoc = 0
-            time.sleep(sample_interval)
-            continue
-
-        # Refresh version from DB (picks up new versions added via Control page)
-        version, brew = get_version(conn)
-        version_id = _version_id(version)
-
-        # Record all readings; web "Hide outliers" filters display. If filtering is ever
-        # re-added here, it must be logged (e.g. print("warn: skipping outlier ...")).
-        date_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-        if API_URL and API_URL.strip():
-            result = post_reading_to_api(date_time, co2, tvoc, temp, version_id, rtemp, rhumi, relay)
-            if result is False:
-                write_reading(conn, date_time, co2, tvoc, temp, version_id, rtemp, rhumi, relay)
-            # result is True: success. result is None: declined (409), do not store
+            incr += sample_interval
         else:
-            write_reading(conn, date_time, co2, tvoc, temp, version_id, rtemp, rhumi, relay)
+            print("debug: ccs811 data unavailable (incr:%d)" % incr);
 
-        # reset vars
-        incr = co2 = tvoc = 0
+        if incr >= write_interval:
+            n = incr / sample_interval
+            co2 = co2 / n
+            tvoc = tvoc / n
 
-    print("debug: sleep %ds (incr:%d, write at %d)" % (sample_interval, incr, write_interval));
-    time.sleep(sample_interval)
+            temp = ds18B20(tempSensor)  # internal temperature
+            if temp is None:
+                temp = 0  # just hack it
+
+            if temp > 12 and temp < TARGET_TEMP and r.getRelayStatus() == "0":
+                r.setRelayStatus(True)
+                print("debug: turning on rowi - too cold")
+            elif temp >= TARGET_TEMP and r.getRelayStatus() == "1":
+                r.setRelayStatus(False)
+                print("debug: turning off rowi - too hot")
+            elif temp < LOW_TEMP_WARNING and r.getRelayStatus() == "1":
+                r.setRelayStatus(False)
+                print("debug: turning off rowi - bogus temp reading")
+
+            relay = r.getRelayStatus()
+
+            if not recording:
+                print("debug: recording paused - skipping write")
+                incr = co2 = tvoc = 0
+                time.sleep(sample_interval)
+                continue
+
+            # Refresh version from DB (picks up new versions added via Control page)
+            version, brew = get_version(conn)
+            version_id = _version_id(version)
+
+            # Record all readings; web "Hide outliers" filters display. If filtering is ever
+            # re-added here, it must be logged (e.g. print("warn: skipping outlier ...")).
+            date_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+            if API_URL and API_URL.strip():
+                result = post_reading_to_api(date_time, co2, tvoc, temp, version_id, rtemp, rhumi, relay)
+                if result is False:
+                    write_reading(conn, date_time, co2, tvoc, temp, version_id, rtemp, rhumi, relay)
+                # result is True: success. result is None: declined (409), do not store
+            else:
+                write_reading(conn, date_time, co2, tvoc, temp, version_id, rtemp, rhumi, relay)
+
+            # reset vars
+            incr = co2 = tvoc = 0
+
+        print("debug: sleep %ds (incr:%d, write at %d)" % (sample_interval, incr, write_interval));
+        time.sleep(sample_interval)
+    except KeyboardInterrupt:
+        raise
+    except Exception as e:
+        print("error: main loop exception (%s: %s) - continuing" % (type(e).__name__, e), file=sys.stderr)
+        time.sleep(SAMPLE_INTERVAL)
