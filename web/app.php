@@ -104,6 +104,13 @@ $app->get('/api/versions/{version}/reading-range', function (Request $request, R
     return $response->withHeader('Content-Type', 'application/json');
 });
 
+// API: health (recorder heartbeat + derived state)
+$app->get('/api/health', function (Request $request, Response $response) use ($dataService) {
+    $health = $dataService->getHealth();
+    $response->getBody()->write(json_encode($health));
+    return $response->withHeader('Content-Type', 'application/json');
+});
+
 // API: config
 $app->get('/api/config', function (Request $request, Response $response) use ($dataService) {
     $config = $dataService->getConfig();

@@ -17,10 +17,12 @@
     <div class="card mb-4">
         <div class="card-header">Data recorder</div>
         <div class="card-body">
-            <div class="d-flex align-items-center gap-3 mb-3">
+            <div class="d-flex align-items-center gap-3 mb-2">
                 <span id="recordingStatus" class="badge">—</span>
                 <button type="button" class="btn btn-primary" id="btnToggle">—</button>
             </div>
+            <p id="recordingHeartbeat" class="text-muted small mb-2">Last heartbeat: —</p>
+            <div id="recordingWarning" class="alert alert-danger small py-2 px-3 mb-2 d-none" role="alert"></div>
             <p class="text-muted small mb-0">When paused, fermmon keeps running (temp/relay) but stops writing readings. Use when changing batches.</p>
         </div>
     </div>
@@ -102,14 +104,79 @@
         return r.json();
     }
 
+    async function getHealth() {
+        const r = await fetch(base + '/api/health');
+        return r.json();
+    }
+
+    function formatAge(seconds) {
+        if (seconds === null || seconds === undefined) return 'never';
+        if (seconds < 60) return seconds + 's ago';
+        if (seconds < 3600) return Math.floor(seconds / 60) + 'm ago';
+        if (seconds < 86400) {
+            const h = Math.floor(seconds / 3600);
+            const m = Math.floor((seconds % 3600) / 60);
+            return m ? h + 'h ' + m + 'm ago' : h + 'h ago';
+        }
+        const d = Math.floor(seconds / 86400);
+        const h = Math.floor((seconds % 86400) / 3600);
+        return h ? d + 'd ' + h + 'h ago' : d + 'd ago';
+    }
+
+    // Resolve the effective UI state (running/paused/stalled/stopped) by combining
+    // the recorder process health with the recording flag.
+    function resolveState(health) {
+        if (health.state === 'running') return health.recording ? 'recording' : 'paused';
+        return health.state; // 'stalled' or 'stopped'
+    }
+
+    function renderStatus(health) {
+        const badge = document.getElementById('recordingStatus');
+        const hbLine = document.getElementById('recordingHeartbeat');
+        const warnBox = document.getElementById('recordingWarning');
+        const toggleBtn = document.getElementById('btnToggle');
+
+        const ui = resolveState(health);
+        const ageLabel = formatAge(health.age_seconds);
+
+        const BADGES = {
+            recording: { text: 'Recording',   cls: 'bg-success' },
+            paused:    { text: 'Paused',      cls: 'bg-secondary' },
+            stalled:   { text: 'Stalled',     cls: 'bg-warning text-dark' },
+            stopped:   { text: 'Not running', cls: 'bg-danger' },
+        };
+        badge.textContent = BADGES[ui].text;
+        badge.className = 'badge ' + BADGES[ui].cls;
+
+        hbLine.textContent = 'Last heartbeat: '
+            + (health.heartbeat ? health.heartbeat + ' (' + ageLabel + ')' : 'never')
+            + ' · sample every ' + health.sample_interval + 's';
+
+        if (ui === 'stalled') {
+            warnBox.className = 'alert alert-warning small py-2 px-3 mb-2';
+            warnBox.textContent = 'fermmon is responding slowly (last heartbeat ' + ageLabel
+                + '). If this persists, check `sudo journalctl -u fermmon -n 50`.';
+        } else if (ui === 'stopped') {
+            warnBox.className = 'alert alert-danger small py-2 px-3 mb-2';
+            warnBox.innerHTML = 'fermmon is not running (last heartbeat ' + ageLabel + '). '
+                + 'Toggling Start/Pause will have no effect until the service is restarted. '
+                + 'On the Pi: <code>sudo systemctl restart fermmon</code>.';
+        } else {
+            warnBox.className = 'alert alert-danger small py-2 px-3 mb-2 d-none';
+            warnBox.textContent = '';
+        }
+
+        // Keep the toggle meaningful even when stopped/stalled: it still writes the
+        // flag, which will take effect once fermmon is back up.
+        const recording = health.recording;
+        toggleBtn.textContent = recording ? 'Pause' : 'Start';
+        toggleBtn.className = 'btn ' + (recording ? 'btn-warning' : 'btn-success');
+    }
+
     async function updateStatus() {
-        const cfg = await getConfig();
+        const [health, cfg] = await Promise.all([getHealth(), getConfig()]);
         if (window.updateNavTimers) updateNavTimers(cfg);
-        const recording = cfg.recording === '1';
-        document.getElementById('recordingStatus').textContent = recording ? 'Recording' : 'Paused';
-        document.getElementById('recordingStatus').className = 'badge ' + (recording ? 'bg-success' : 'bg-secondary');
-        document.getElementById('btnToggle').textContent = recording ? 'Pause' : 'Start';
-        document.getElementById('btnToggle').className = 'btn ' + (recording ? 'btn-warning' : 'btn-success');
+        renderStatus(health);
     }
 
     // Dirty-state: highlight Save buttons when form values differ from initial
@@ -209,6 +276,8 @@
     });
 
     updateStatus();
+    // Refresh heartbeat age every 10s so "Not running" surfaces without a reload.
+    setInterval(updateStatus, 10000);
 })();
 </script>
 </body>

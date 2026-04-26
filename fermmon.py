@@ -83,6 +83,17 @@ def get_config(conn):
         return {'recording': '1', 'sample_interval': '10', 'write_interval': '300'}
 
 
+def write_heartbeat(conn):
+    """Update fermmon_heartbeat in config so the web UI can detect a dead process.
+    Stored as naive local time (same format as readings.date_time) so PHP can
+    compute age with strtotime() in the server's local timezone."""
+    conn.execute(
+        "INSERT OR REPLACE INTO config (key, value) VALUES ('fermmon_heartbeat', ?)",
+        (datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),)
+    )
+    conn.commit()
+
+
 def write_reading(conn, date_time, co2, tvoc, temp, version, rtemp, rhumi, relay):
     """Insert a reading into SQLite."""
     conn.execute(
@@ -178,6 +189,7 @@ while True:
     # network blip on the rowi) don't exit the process and chew through
     # systemd's restart budget. systemd still restarts us on real crashes.
     try:
+        write_heartbeat(conn)
         cfg = get_config(conn)
         recording = cfg.get('recording', '1') == '1'
         sample_interval = int(cfg.get('sample_interval', str(SAMPLE_INTERVAL)))

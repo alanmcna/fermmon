@@ -222,6 +222,67 @@ test('readings: POST requires co2, tvoc, temp', function () {
     expect($json)->toHaveKey('error');
 });
 
+test('health: returns stopped when no heartbeat recorded', function () {
+    // Clear any existing heartbeat from prior tests
+    $pdo = new PDO('sqlite:' . getenv('FERMMON_BASE_DIR') . '/data/fermmon.db');
+    $pdo->exec("DELETE FROM config WHERE key = 'fermmon_heartbeat'");
+
+    $request = $this->requestFactory->createServerRequest('GET', '/api/health');
+    $response = $this->app->handle($request);
+
+    expect($response->getStatusCode())->toBe(200);
+    $health = json_decode((string) $response->getBody(), true);
+    expect($health)->toMatchArray([
+        'state' => 'stopped',
+        'heartbeat' => null,
+        'age_seconds' => null,
+    ]);
+    expect($health)->toHaveKeys(['sample_interval', 'recording']);
+});
+
+test('health: returns running when heartbeat is fresh', function () {
+    $pdo = new PDO('sqlite:' . getenv('FERMMON_BASE_DIR') . '/data/fermmon.db');
+    $stmt = $pdo->prepare("INSERT OR REPLACE INTO config (key, value) VALUES ('fermmon_heartbeat', ?)");
+    $stmt->execute([date('Y-m-d H:i:s')]);
+
+    $request = $this->requestFactory->createServerRequest('GET', '/api/health');
+    $response = $this->app->handle($request);
+
+    $health = json_decode((string) $response->getBody(), true);
+    expect($health['state'])->toBe('running');
+    expect($health['age_seconds'])->toBeLessThan(5);
+});
+
+test('health: returns stalled when heartbeat is 2-10x sample_interval old', function () {
+    $pdo = new PDO('sqlite:' . getenv('FERMMON_BASE_DIR') . '/data/fermmon.db');
+    // Ensure sample_interval=10 so thresholds are predictable: stalled = 20..100s
+    $pdo->exec("INSERT OR REPLACE INTO config (key, value) VALUES ('sample_interval', '10')");
+    $staleTime = date('Y-m-d H:i:s', time() - 45);  // 45s ago → stalled
+    $stmt = $pdo->prepare("INSERT OR REPLACE INTO config (key, value) VALUES ('fermmon_heartbeat', ?)");
+    $stmt->execute([$staleTime]);
+
+    $request = $this->requestFactory->createServerRequest('GET', '/api/health');
+    $response = $this->app->handle($request);
+
+    $health = json_decode((string) $response->getBody(), true);
+    expect($health['state'])->toBe('stalled');
+    expect($health['age_seconds'])->toBeGreaterThanOrEqual(40);
+});
+
+test('health: returns stopped when heartbeat is >10x sample_interval old', function () {
+    $pdo = new PDO('sqlite:' . getenv('FERMMON_BASE_DIR') . '/data/fermmon.db');
+    $pdo->exec("INSERT OR REPLACE INTO config (key, value) VALUES ('sample_interval', '10')");
+    $veryStale = date('Y-m-d H:i:s', time() - 600);  // 10 min ago → stopped
+    $stmt = $pdo->prepare("INSERT OR REPLACE INTO config (key, value) VALUES ('fermmon_heartbeat', ?)");
+    $stmt->execute([$veryStale]);
+
+    $request = $this->requestFactory->createServerRequest('GET', '/api/health');
+    $response = $this->app->handle($request);
+
+    $health = json_decode((string) $response->getBody(), true);
+    expect($health['state'])->toBe('stopped');
+});
+
 test('control page: toggle hide_outliers and save persists to API', function () {
     // Set initial state
     $body = (new StreamFactory())->createStream(json_encode(['hide_outliers' => '1']));

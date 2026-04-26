@@ -182,6 +182,49 @@ class DataService
     }
 
     /**
+     * Get recorder health: heartbeat, age, and derived state.
+     *
+     * State thresholds are relative to sample_interval:
+     *   age < 2x   -> running   (healthy; expected to be <= sample_interval most of the time)
+     *   age < 10x  -> stalled   (still responding but slower than expected)
+     *   age >= 10x -> stopped   (process likely dead or hung)
+     *   no heartbeat key       -> stopped (never checked in; e.g. service disabled)
+     */
+    public function getHealth(): array
+    {
+        $config = $this->getConfig();
+        $heartbeat = $config['fermmon_heartbeat'] ?? null;
+        $sampleInterval = (int)($config['sample_interval'] ?? 10);
+        if ($sampleInterval <= 0) $sampleInterval = 10;
+
+        $ageSeconds = null;
+        if ($heartbeat) {
+            $ts = strtotime($heartbeat);
+            if ($ts !== false) {
+                $ageSeconds = max(0, time() - $ts);
+            }
+        }
+
+        if ($ageSeconds === null) {
+            $state = 'stopped';
+        } elseif ($ageSeconds < $sampleInterval * 2) {
+            $state = 'running';
+        } elseif ($ageSeconds < $sampleInterval * 10) {
+            $state = 'stalled';
+        } else {
+            $state = 'stopped';
+        }
+
+        return [
+            'state' => $state,
+            'heartbeat' => $heartbeat,
+            'age_seconds' => $ageSeconds,
+            'sample_interval' => $sampleInterval,
+            'recording' => ($config['recording'] ?? '1') === '1',
+        ];
+    }
+
+    /**
      * Set config value.
      */
     public function setConfig(string $key, string $value): bool
