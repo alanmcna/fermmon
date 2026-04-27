@@ -132,9 +132,12 @@
         </div>
         <div class="col-auto">
             <select class="form-select form-select-sm" id="chartRange" style="width: auto">
-                <option value="1h">Last hour</option>
-                <option value="24h" selected>Last 24 hours</option>
-                <option value="5d">Last 5 days</option>
+                <option value="3h">Last 3 hours</option>
+                <option value="6h">Last 6 hours</option>
+                <option value="12h">Last 12 hours</option>
+                <option value="3d" selected>Last 3 days</option>
+                <option value="6d">Last 6 days</option>
+                <option value="12d">Last 12 days</option>
                 <option value="all">All</option>
             </select>
         </div>
@@ -262,10 +265,30 @@
     function getChartHours() {
         const sel = document.getElementById('chartRange');
         if (!sel) return null;
-        if (sel.value === '1h') return 1;
-        if (sel.value === '24h') return 24;
-        if (sel.value === '5d') return 120;
-        return null;
+        const map = { '3h': 3, '6h': 6, '12h': 12, '3d': 72, '6d': 144, '12d': 288 };
+        return map[sel.value] ?? null;
+    }
+
+    // Format an x-axis offset relative to "now" (maxDay). hours === null = all-data mode.
+    // Short ranges (<= 12h) show hour offsets (e.g. "-3h"), longer windowed ranges
+    // show day offsets (e.g. "-5"), and the all-data mode shows absolute day count.
+    function formatXOffset(x, maxDay, hours) {
+        if (hours === null || hours === undefined) {
+            return x % 1 === 0 ? 'Day ' + x : '';
+        }
+        if (hours <= 12) {
+            return Math.round((x - maxDay) * 24) + 'h';
+        }
+        const daysDelta = x - maxDay;
+        return Math.abs(daysDelta - Math.round(daysDelta)) < 0.01
+            ? Math.round(daysDelta).toString()
+            : '';
+    }
+
+    function formatTooltipTime(x, maxDay, hours) {
+        if (hours === null || hours === undefined) return 'Day ' + x.toFixed(1);
+        if (hours <= 12) return ((x - maxDay) * 24).toFixed(1) + 'h';
+        return (x - maxDay).toFixed(1) + 'd';
     }
 
     async function fetchReadings(version, since, hours, endDate) {
@@ -304,7 +327,7 @@
         const maxTvoc = tvoc.length ? Math.max(...tvoc.map(p => p.y)) : 0;
         const maxDay = readings.length ? day(readings[readings.length - 1].date_time) : 0;
         const hoursRange = getChartHours();
-        const xMax = (hoursRange === 1 || hoursRange === 24 || hoursRange === 120) ? Math.max(maxDay, 0.001) : Math.max(0.1, maxDay);
+        const xMax = hoursRange !== null ? Math.max(maxDay, 0.001) : Math.max(0.1, maxDay);
 
         const startLabel = readings.length ? new Date(readings[0].date_time.replace(' ', 'T') + 'Z').toLocaleDateString() : '';
 
@@ -331,12 +354,7 @@
             }
         });
 
-        const xTick = (v) => {
-            if (hoursRange === 1) return Math.round((v - maxDay) * 24 * 60) + 'm';  // -60m to 0m (last 1h)
-            if (hoursRange === 24) return ((v - maxDay) * 24).toFixed(0) + 'h';  // -24h to 0 (last 24h)
-            if (hoursRange === 120) return (v % 1 === 0 ? Math.round(v - maxDay).toString() : '');  // -5 to 0 (last 5d)
-            return v % 1 === 0 ? 'Day ' + v : '';  // 0 to X (all)
-        };
+        const xTick = (v) => formatXOffset(v, maxDay, hoursRange);
 
         let tooltipAutoCloseTimer = null;
         function hideTooltip() {
@@ -422,11 +440,7 @@
                     tooltip: { enabled: false, external: externalTooltip,
                         callbacks: { title: (items) => {
                             const d = items[0]?.raw?.x;
-                            let label;
-                            if (hoursRange === 1) label = Math.round((d - maxDay) * 24 * 60) + 'm';
-                            else if (hoursRange === 24) label = ((d - maxDay) * 24).toFixed(0) + 'h';
-                            else if (hoursRange === 120) label = Math.round(d - maxDay);
-                            else label = 'Day ' + d.toFixed(1);
+                            const label = formatTooltipTime(d, maxDay, hoursRange);
                             const idx = items[0]?.dataIndex;
                             const dt = readings[idx]?.date_time;
                             return dt ? label + ' (' + dt + ')' : label;
@@ -455,17 +469,15 @@
                          title: { display: true, text: 'From ' + startLabel } },
                     y: { type: 'linear', position: 'left', min: 0, max: 50, title: { display: true, text: '°C' } },
                     y1: { type: 'linear', position: 'right', min: 0, max: 100, grid: { drawOnChartArea: false }, title: { display: true, text: '% Humidity' } },
-                    y2: { type: 'linear', position: 'right', min: 0, max: 1, grid: { drawOnChartArea: false }, ticks: { stepSize: 1 } }
+                    // y2 powers the heat-belt stepped overlay. display:false hides the
+                    // 0/1 axis labels but keeps the scale active so the line still draws.
+                    y2: { type: 'linear', position: 'right', min: 0, max: 1, display: false }
                 },
                 plugins: { title: { display: true, text: 'Temperature and Humidity over Time' },
                     tooltip: { enabled: false, external: externalTooltip,
                         callbacks: { title: (items) => {
                             const d = items[0]?.raw?.x;
-                            let label;
-                            if (hoursRange === 1) label = Math.round((d - maxDay) * 24 * 60) + 'm';
-                            else if (hoursRange === 24) label = ((d - maxDay) * 24).toFixed(0) + 'h';
-                            else if (hoursRange === 120) label = Math.round(d - maxDay);
-                            else label = 'Day ' + d.toFixed(1);
+                            const label = formatTooltipTime(d, maxDay, hoursRange);
                             const idx = items[0]?.dataIndex;
                             const dt = readings[idx]?.date_time;
                             return dt ? label + ' (' + dt + ')' : label;
