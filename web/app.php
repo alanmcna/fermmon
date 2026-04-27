@@ -129,19 +129,23 @@ $app->post('/api/config', function (Request $request, Response $response) use ($
     return $response->withHeader('Content-Type', 'application/json');
 });
 
-// API: add version
+// API: add version. `version` is optional; server auto-assigns max+1 when omitted.
 $app->post('/api/versions', function (Request $request, Response $response) use ($dataService) {
     $body = $request->getParsedBody();
     $version = $body['version'] ?? '';
     $brew = $body['brew'] ?? '';
     $url = $body['url'] ?? '';
     $description = $body['description'] ?? '';
-    if (!$version || !$brew) {
-        $response->getBody()->write(json_encode(['error' => 'version and brew required']));
+    if (!$brew) {
+        $response->getBody()->write(json_encode(['error' => 'brew required']));
         return $response->withHeader('Content-Type', 'application/json')->withStatus(400);
     }
-    $dataService->addVersion($version, $brew, $url, $description);
-    $response->getBody()->write(json_encode(['ok' => true]));
+    $assigned = $dataService->addVersion($brew, $version ?: null, $url, $description);
+    if ($assigned === false) {
+        $response->getBody()->write(json_encode(['error' => 'Failed to add version']));
+        return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+    }
+    $response->getBody()->write(json_encode(['ok' => true, 'version' => $assigned]));
     return $response->withHeader('Content-Type', 'application/json');
 });
 

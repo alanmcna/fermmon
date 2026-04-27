@@ -283,6 +283,93 @@ test('health: returns stopped when heartbeat is >10x sample_interval old', funct
     expect($health['state'])->toBe('stopped');
 });
 
+test('versions: POST without version auto-assigns max+1 and returns it', function () {
+    // Compute current max so test is robust against accumulated test-DB state.
+    $listResponse = $this->app->handle(
+        $this->requestFactory->createServerRequest('GET', '/api/versions')
+    );
+    $existing = json_decode((string) $listResponse->getBody(), true);
+    $currentMax = 0;
+    foreach ($existing as $v) {
+        $n = (int) $v['version'];  // non-numeric strings cast to 0
+        if ($n > $currentMax) $currentMax = $n;
+    }
+
+    $body = (new StreamFactory())->createStream(json_encode(['brew' => 'Auto-Assigned Brew']));
+    $response = $this->app->handle(
+        $this->requestFactory->createServerRequest('POST', '/api/versions')
+            ->withBody($body)
+            ->withHeader('Content-Type', 'application/json')
+    );
+
+    expect($response->getStatusCode())->toBe(200);
+    $json = json_decode((string) $response->getBody(), true);
+    expect($json)->toHaveKeys(['ok', 'version']);
+    expect($json['ok'])->toBeTrue();
+    expect($json['version'])->toBe((string)($currentMax + 1));
+
+    // Next auto-assign increments again
+    $body2 = (new StreamFactory())->createStream(json_encode(['brew' => 'Another Auto Brew']));
+    $response2 = $this->app->handle(
+        $this->requestFactory->createServerRequest('POST', '/api/versions')
+            ->withBody($body2)
+            ->withHeader('Content-Type', 'application/json')
+    );
+    $json2 = json_decode((string) $response2->getBody(), true);
+    expect($json2['version'])->toBe((string)($currentMax + 2));
+
+    // The newly-assigned version should be current and listed
+    $listResponse2 = $this->app->handle(
+        $this->requestFactory->createServerRequest('GET', '/api/versions')
+    );
+    $versions = json_decode((string) $listResponse2->getBody(), true);
+    $current = array_values(array_filter($versions, fn($v) => (int)$v['is_current'] === 1))[0] ?? null;
+    expect($current)->not->toBeNull();
+    expect($current['version'])->toBe((string)($currentMax + 2));
+    expect($current['brew'])->toBe('Another Auto Brew');
+});
+
+test('versions: auto-assigned versions cannot duplicate existing ones', function () {
+    // Add several auto-assigned versions and verify all are unique
+    $assigned = [];
+    for ($i = 0; $i < 3; $i++) {
+        $body = (new StreamFactory())->createStream(json_encode(['brew' => 'Dup Test ' . $i]));
+        $response = $this->app->handle(
+            $this->requestFactory->createServerRequest('POST', '/api/versions')
+                ->withBody($body)
+                ->withHeader('Content-Type', 'application/json')
+        );
+        $json = json_decode((string) $response->getBody(), true);
+        $assigned[] = $json['version'];
+    }
+    expect($assigned)->toBe(array_unique($assigned));
+    expect(count($assigned))->toBe(3);
+});
+
+test('versions: POST with explicit version still works (backward compat)', function () {
+    $body = (new StreamFactory())->createStream(json_encode(['version' => '777', 'brew' => 'Explicit Version']));
+    $response = $this->app->handle(
+        $this->requestFactory->createServerRequest('POST', '/api/versions')
+            ->withBody($body)
+            ->withHeader('Content-Type', 'application/json')
+    );
+    expect($response->getStatusCode())->toBe(200);
+    $json = json_decode((string) $response->getBody(), true);
+    expect($json['version'])->toBe('777');
+});
+
+test('versions: POST without brew is rejected', function () {
+    $body = (new StreamFactory())->createStream(json_encode(['url' => 'https://example.com']));
+    $response = $this->app->handle(
+        $this->requestFactory->createServerRequest('POST', '/api/versions')
+            ->withBody($body)
+            ->withHeader('Content-Type', 'application/json')
+    );
+    expect($response->getStatusCode())->toBe(400);
+    $json = json_decode((string) $response->getBody(), true);
+    expect($json['error'])->toContain('brew');
+});
+
 test('control page: toggle hide_outliers and save persists to API', function () {
     // Set initial state
     $body = (new StreamFactory())->createStream(json_encode(['hide_outliers' => '1']));

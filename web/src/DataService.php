@@ -284,16 +284,30 @@ class DataService
     }
 
     /**
-     * Add new version and set as current.
+     * Add new version and set as current. Returns the assigned version string,
+     * or false on failure.
+     *
+     * When $version is null or empty, the next integer after the current max
+     * is assigned automatically (prevents users creating duplicates by hand).
+     * When $version is explicitly provided, preserves the legacy upsert
+     * behaviour (INSERT OR REPLACE) used by migration scripts and tests.
      */
-    public function addVersion(string $version, string $brew, string $url = '', string $description = ''): bool
+    public function addVersion(string $brew, ?string $version = null, string $url = '', string $description = ''): string|false
     {
         if (!$this->db) return false;
+        $brew = trim($brew);
+        if ($brew === '') return false;
 
-        $version = preg_replace('/^v/i', '', trim($version));
+        if ($version === null || trim($version) === '') {
+            $row = $this->db->query('SELECT MAX(CAST(version AS INTEGER)) AS maxv FROM versions')->fetch(\PDO::FETCH_ASSOC);
+            $version = (string)(((int)($row['maxv'] ?? 0)) + 1);
+        } else {
+            $version = preg_replace('/^v/i', '', trim($version));
+        }
+
         $this->db->exec('UPDATE versions SET is_current = 0');
         $stmt = $this->db->prepare('INSERT OR REPLACE INTO versions (version, brew, url, description, is_current) VALUES (?, ?, ?, ?, 1)');
-        return $stmt->execute([$version, $brew, $url, $description]);
+        return $stmt->execute([$version, $brew, $url, $description]) ? $version : false;
     }
 
     /**

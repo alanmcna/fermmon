@@ -15,14 +15,10 @@
     <h1>Brews</h1>
 
     <div class="card mb-4" id="addVersionCard">
-        <div class="card-header">Add new version</div>
+        <div class="card-header">Add new brew</div>
         <div class="card-body">
-            <p class="text-muted small">Add a new brew and set it as current. Best done when recorder is paused (Control page).</p>
+            <p class="text-muted small">Add a new brew and set it as current. The version number is assigned automatically. Best done when recorder is paused (Control page).</p>
             <form id="addVersionForm">
-                <div class="mb-3">
-                    <label class="form-label">Version</label>
-                    <input type="text" class="form-control" name="version" placeholder="15" required>
-                </div>
                 <div class="mb-3">
                     <label class="form-label">Brew name</label>
                     <input type="text" class="form-control" name="brew" placeholder="My New IPA" required>
@@ -109,16 +105,16 @@
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                version: fd.get('version'),
                 brew: fd.get('brew'),
                 url: fd.get('url') || '',
                 description: fd.get('description') || ''
             })
         });
         if (r.ok) {
+            const result = await r.json();
             e.target.reset();
             loadVersions();
-            alert('Version added. You can start recording.');
+            alert('Brew added as v' + result.version + '. You can start recording.');
         } else {
             const err = await r.json();
             alert(err.error || 'Failed');
