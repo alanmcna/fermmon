@@ -1,5 +1,5 @@
 // Service worker: cache static assets for offline. API caching is optional (see cacheApis param).
-const CACHE = 'fermmon-v5';
+const CACHE = 'fermmon-v6';
 
 function isApiRequest(url) {
   return new URL(url).pathname.startsWith('/api/');
@@ -55,6 +55,7 @@ async function handleApiFetch(e) {
 }
 
 self.addEventListener('fetch', (e) => {
+  if (e.request.method !== 'GET') return;
   if (!e.request.url.startsWith(self.location.origin)) return;
 
   if (isApiRequest(e.request.url)) {
@@ -64,11 +65,13 @@ self.addEventListener('fetch', (e) => {
     return;
   }
 
-  // Static: network first, cache on success, fallback to cache when offline
+  // Static: network first, cache on success, fallback to cache when offline.
+  // A failed fetch (e.g. Cloudflare Access redirecting to a login origin) must
+  // resolve to a valid Response, not undefined, or the FetchEvent errors out.
   e.respondWith(fetch(e.request).then(r => {
     if (r.ok && r.type === 'basic') {
       caches.open(CACHE).then(cache => cache.put(e.request, r.clone()));
     }
     return r;
-  }).catch(() => caches.match(e.request)));
+  }).catch(async () => (await caches.match(e.request)) || Response.error()));
 });
