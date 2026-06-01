@@ -110,6 +110,14 @@ $app->get('/api/health', function (Request $request, Response $response) use ($d
     $response->getBody()->write(json_encode($health));
     return $response->withHeader('Content-Type', 'application/json');
 });
+// API: heartbeat (recorder check-in for split web + recorder deployments).
+// fermmon.py POSTs here each loop when API_URL is set so the UI, which reads
+// this server's DB, can detect that a remote recorder is alive.
+$app->post('/api/heartbeat', function (Request $request, Response $response) use ($dataService) {
+    $ok = $dataService->recordHeartbeat();
+    $response->getBody()->write(json_encode($ok ? ['ok' => true] : ['error' => 'Failed to record heartbeat']));
+    return $response->withHeader('Content-Type', 'application/json')->withStatus($ok ? 201 : 500);
+});
 
 // API: config
 $app->get('/api/config', function (Request $request, Response $response) use ($dataService) {

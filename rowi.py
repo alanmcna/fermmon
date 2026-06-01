@@ -2,22 +2,44 @@ import requests
 import json
 import time
 
+
+class RowiError(Exception):
+    """Raised when the Rowi controller is unreachable or returns a bad response.
+
+    Lets callers (the main loop) skip temp/humidity/relay handling for an
+    iteration instead of aborting when rowi.box is offline."""
+    pass
+
+
 class Rowi:
+    # Fail fast instead of blocking the main loop on connection retries when
+    # rowi.box is offline.
+    TIMEOUT = 5
+
     def __init__(self):
         self.ROWI_API='http://rowi.box:80/'
-        
+
     def getTemperature(self):
-        r = requests.get(self.ROWI_API + 'getTemperature').json()
-        return float(int(r['temp'])/100), float(int(r['humi'])/100)
+        try:
+            r = requests.get(self.ROWI_API + 'getTemperature', timeout=self.TIMEOUT).json()
+            return float(int(r['temp'])/100), float(int(r['humi'])/100)
+        except (requests.exceptions.RequestException, ValueError, KeyError) as e:
+            raise RowiError("getTemperature failed: %s" % e)
 
     def getRelayStatus(self):
-        r = requests.get(self.ROWI_API + 'getRelayStatus').json()
-        return r['rels']
+        try:
+            r = requests.get(self.ROWI_API + 'getRelayStatus', timeout=self.TIMEOUT).json()
+            return r['rels']
+        except (requests.exceptions.RequestException, ValueError, KeyError) as e:
+            raise RowiError("getRelayStatus failed: %s" % e)
 
     def setRelayStatus(self, status):
         data = "on" if (status) else "off"
-        r = requests.post(self.ROWI_API + 'setRelayStatus', json={"data": data}).json()
-        return r['rslt']
+        try:
+            r = requests.post(self.ROWI_API + 'setRelayStatus', json={"data": data}, timeout=self.TIMEOUT).json()
+            return r['rslt']
+        except (requests.exceptions.RequestException, ValueError, KeyError) as e:
+            raise RowiError("setRelayStatus failed: %s" % e)
 
     def test(self):
         print("Rowi - current status is: " + self.getRelayStatus())

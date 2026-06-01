@@ -18,6 +18,12 @@ The CCS811 sensor (Mode 1) produces new eCO2/tVOC readings every 1 second. fermm
 
 **API push**: Set `API_URL` (default `https://localhost:443`) to have fermmon POST readings to the web API instead of local SQLite. On API failure, it falls back to local DB. Set `API_URL=` (empty) to use local SQLite only.
 
+In this split web + recorder mode the recorder also POSTs a heartbeat to `/api/heartbeat` each loop, so the web UI (which reads its own DB) can tell the recorder is alive even when it runs on a different host. The server timestamps the heartbeat itself, so the Pi and web host don't need synchronised clocks. With `API_URL=` (local mode) the heartbeat is written straight to the local DB instead.
+
+The recorder also reads config (`recording` for Start/Pause, `sample_interval`, `write_interval`) from `GET /api/config` when `API_URL` is set, so changes made in the web UI reach a remote recorder. If the config fetch fails it falls back to the local DB.
+
+**Rowi offline**: if `rowi.box` is unreachable, fermmon skips temperature/humidity compensation and heat-belt relay control for that iteration (logging a warning) and keeps sampling/recording; readings just store no `rtemp`/`rhumi`/`relay` until the Rowi is back.
+
 ## CCS811 operating modes
 
 | Mode | Interval | Use |

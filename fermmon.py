@@ -7,7 +7,7 @@ import json
 import ssl
 import urllib.request
 import urllib.error
-from rowi import Rowi
+from rowi import Rowi, RowiError
 
 TARGET_TEMP = 19.5
 LOW_TEMP_WARNING = 10
@@ -92,6 +92,52 @@ def write_heartbeat(conn):
         (datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),)
     )
     conn.commit()
+
+
+def post_heartbeat_to_api():
+    """POST a heartbeat to the web API so the remote DB reflects that the
+    recorder is alive. In a split web + recorder deployment the web app reads
+    the heartbeat from its own DB, so a purely local heartbeat (write_heartbeat)
+    would always look 'not running' to the UI. The server timestamps the
+    heartbeat itself, avoiding clock skew between the Pi and the web host.
+    Returns True on success, False on error."""
+    if not API_URL or not API_URL.strip():
+        return False
+    url = API_URL.rstrip('/') + '/api/heartbeat'
+    req = urllib.request.Request(url, data=b'{}', method='POST',
+                                  headers={'Content-Type': 'application/json'})
+    try:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE  # allow self-signed certs for localhost
+        with urllib.request.urlopen(req, timeout=10, context=ctx) as resp:
+            return 200 <= resp.getcode() < 300
+    except Exception as e:
+        print("error: heartbeat API error - %s" % e, file=sys.stderr)
+    return False
+
+
+def get_config_from_api():
+    """Fetch config from the web API so a remote recorder honors Start/Pause and
+    interval changes made in the UI (which write to the web DB, not the Pi's).
+    Returns a dict of str->str on success, or None on error so the caller can
+    fall back to local config."""
+    if not API_URL or not API_URL.strip():
+        return None
+    url = API_URL.rstrip('/') + '/api/config'
+    req = urllib.request.Request(url, method='GET')
+    try:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE  # allow self-signed certs for localhost
+        with urllib.request.urlopen(req, timeout=10, context=ctx) as resp:
+            if 200 <= resp.getcode() < 300:
+                data = json.loads(resp.read().decode('utf-8'))
+                if isinstance(data, dict):
+                    return {k: str(v) for k, v in data.items()}
+    except Exception as e:
+        print("error: config API error - %s" % e, file=sys.stderr)
+    return None
 
 
 def write_reading(conn, date_time, co2, tvoc, temp, version, rtemp, rhumi, relay):
@@ -189,14 +235,35 @@ while True:
     # network blip on the rowi) don't exit the process and chew through
     # systemd's restart budget. systemd still restarts us on real crashes.
     try:
-        write_heartbeat(conn)
-        cfg = get_config(conn)
+        # In API mode push the heartbeat to the web DB (otherwise the UI, which
+        # reads its own DB, can't see the recorder). Fall back to local on error.
+        if API_URL and API_URL.strip():
+            if not post_heartbeat_to_api():
+                write_heartbeat(conn)
+        else:
+            write_heartbeat(conn)
+        # In API mode read config from the web DB so UI changes (Start/Pause,
+        # intervals) reach a remote recorder. Fall back to local on error.
+        cfg = None
+        if API_URL and API_URL.strip():
+            cfg = get_config_from_api()
+        if cfg is None:
+            cfg = get_config(conn)
         recording = cfg.get('recording', '1') == '1'
         sample_interval = int(cfg.get('sample_interval', str(SAMPLE_INTERVAL)))
         write_interval = int(cfg.get('write_interval', str(WRITE_INTERVAL)))
-        # get (external) temp and humidity from the rowi and set the ccs811 env data
-        rtemp, rhumi = r.getTemperature()
-        ccs811Sensor.set_environmental_data(rhumi, rtemp)
+        # get (external) temp and humidity from the rowi and set the ccs811 env data.
+        # If the rowi is offline, skip env compensation (and relay control below)
+        # for this iteration rather than aborting the whole loop; CCS811 sampling
+        # and recording continue with rtemp/rhumi left unset.
+        rtemp = rhumi = None
+        rowi_online = True
+        try:
+            rtemp, rhumi = r.getTemperature()
+            ccs811Sensor.set_environmental_data(rhumi, rtemp)
+        except RowiError as e:
+            rowi_online = False
+            print("warn: rowi offline, skipping temp/humidity (%s)" % e, file=sys.stderr)
 
         if ccs811Sensor.data_available():
             ccs811Sensor.read_algorithm_results()
@@ -218,17 +285,26 @@ while True:
             if temp is None:
                 temp = 0  # just hack it
 
-            if temp > 12 and temp < TARGET_TEMP and r.getRelayStatus() == "0":
-                r.setRelayStatus(True)
-                print("debug: turning on rowi - too cold")
-            elif temp >= TARGET_TEMP and r.getRelayStatus() == "1":
-                r.setRelayStatus(False)
-                print("debug: turning off rowi - too hot")
-            elif temp < LOW_TEMP_WARNING and r.getRelayStatus() == "1":
-                r.setRelayStatus(False)
-                print("debug: turning off rowi - bogus temp reading")
+            # Relay (heat belt) control needs the rowi; skip it when offline and
+            # record relay as unknown (None) so the reading is still written.
+            relay = None
+            if rowi_online:
+                try:
+                    if temp > 12 and temp < TARGET_TEMP and r.getRelayStatus() == "0":
+                        r.setRelayStatus(True)
+                        print("debug: turning on rowi - too cold")
+                    elif temp >= TARGET_TEMP and r.getRelayStatus() == "1":
+                        r.setRelayStatus(False)
+                        print("debug: turning off rowi - too hot")
+                    elif temp < LOW_TEMP_WARNING and r.getRelayStatus() == "1":
+                        r.setRelayStatus(False)
+                        print("debug: turning off rowi - bogus temp reading")
 
-            relay = r.getRelayStatus()
+                    relay = r.getRelayStatus()
+                except RowiError as e:
+                    print("warn: rowi offline, skipping relay control (%s)" % e, file=sys.stderr)
+            else:
+                print("debug: rowi offline - skipping relay control")
 
             if not recording:
                 print("debug: recording paused - skipping write")

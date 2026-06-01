@@ -283,6 +283,32 @@ test('health: returns stopped when heartbeat is >10x sample_interval old', funct
     expect($health['state'])->toBe('stopped');
 });
 
+test('heartbeat: POST records a fresh heartbeat and health reads running', function () {
+    // Clear any existing heartbeat so we know the POST is what set it.
+    $pdo = new PDO('sqlite:' . getenv('FERMMON_BASE_DIR') . '/data/fermmon.db');
+    $pdo->exec("DELETE FROM config WHERE key = 'fermmon_heartbeat'");
+    $pdo->exec("INSERT OR REPLACE INTO config (key, value) VALUES ('sample_interval', '10')");
+
+    $body = (new StreamFactory())->createStream('{}');
+    $request = $this->requestFactory->createServerRequest('POST', '/api/heartbeat')
+        ->withBody($body)
+        ->withHeader('Content-Type', 'application/json');
+    $response = $this->app->handle($request);
+
+    expect($response->getStatusCode())->toBe(201);
+    $result = json_decode((string) $response->getBody(), true);
+    expect($result['ok'])->toBeTrue();
+
+    // The server timestamped the heartbeat, so health should now be running.
+    $healthResponse = $this->app->handle(
+        $this->requestFactory->createServerRequest('GET', '/api/health')
+    );
+    $health = json_decode((string) $healthResponse->getBody(), true);
+    expect($health['state'])->toBe('running');
+    expect($health['heartbeat'])->not->toBeNull();
+    expect($health['age_seconds'])->toBeLessThan(5);
+});
+
 test('versions: POST without version auto-assigns max+1 and returns it', function () {
     // Compute current max so test is robust against accumulated test-DB state.
     $listResponse = $this->app->handle(

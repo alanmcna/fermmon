@@ -236,6 +236,20 @@ class DataService
     }
 
     /**
+     * Record a recorder heartbeat in this server's DB.
+     *
+     * Used in split web + recorder deployments where fermmon.py runs on a
+     * different host and POSTs to /api/heartbeat. The server timestamps the
+     * heartbeat itself (local time, matching getHealth()'s strtotime/time()
+     * comparison) so clock skew between the recorder and web host can't make
+     * the recorder look stopped.
+     */
+    public function recordHeartbeat(): bool
+    {
+        return $this->setConfig('fermmon_heartbeat', date('Y-m-d H:i:s'));
+    }
+
+    /**
      * Check if a version is marked as finished (has end_date).
      */
     public function versionIsFinished(?string $version): bool
