@@ -4,7 +4,11 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Control – Fermmon</title>
+    <meta name="theme-color" content="#0d6efd">
     <link rel="icon" href="/favicon.ico" sizes="any">
+    <link rel="apple-touch-icon" href="/fermmon-192.png">
+    <link rel="manifest" href="/manifest.json">
+    <script>if ('serviceWorker' in navigator) { fetch(window.location.origin + '/api/config?t=' + Date.now(), { cache: 'no-store' }).then(r => r.ok ? r.json() : {}).then(cfg => { const cacheApis = (cfg && cfg.cache_apis === '1') ? '1' : '0'; navigator.serviceWorker.register('/sw.js?cacheApis=' + cacheApis); }).catch(() => navigator.serviceWorker.register('/sw.js?cacheApis=0')); }</script>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.5/dist/css/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous">
     <script defer src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.5/dist/js/bootstrap.bundle.min.js"></script>
 </head>

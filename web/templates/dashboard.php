@@ -9,6 +9,7 @@
     <meta http-equiv="pragma" content="no-cache">
     <title>Brew (Fermentor) Monitor</title>
     <link rel="icon" href="/favicon.ico" sizes="any">
+    <link rel="apple-touch-icon" href="/fermmon-192.png">
     <link rel="manifest" href="/manifest.json">
     <script>if ('serviceWorker' in navigator) { fetch(window.location.origin + '/api/config?t=' + Date.now(), { cache: 'no-store' }).then(r => r.ok ? r.json() : {}).then(cfg => { const cacheApis = (cfg && cfg.cache_apis === '1') ? '1' : '0'; navigator.serviceWorker.register('/sw.js?cacheApis=' + cacheApis); }).catch(() => navigator.serviceWorker.register('/sw.js?cacheApis=0')); }</script>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.5/dist/css/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous">
